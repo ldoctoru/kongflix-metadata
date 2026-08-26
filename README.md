@@ -58,6 +58,17 @@ text**. Genres, external provider IDs, and other fields are not checked.
 | `LOG_PATH` | no | `/logs/metadata-updater.log` | Path to the summary log file inside the container |
 | `MAX_REFRESHES_PER_RUN` | no | `200` | Caps how many items get a refresh triggered per scan run |
 
+## Unraid
+
+An Unraid Community Applications template is included at
+[`unraid-template.xml`](unraid-template.xml), with an icon at
+[`icon.svg`](icon.svg). To install manually in Unraid (Docker tab → Add
+Container → Template repositories), point Unraid at:
+
+```
+https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/unraid-template.xml
+```
+
 ## Development
 
 ```bash
