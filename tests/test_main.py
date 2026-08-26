@@ -35,9 +35,10 @@ def test_main_returns_nonzero_on_invalid_config():
     assert exit_code == 1
 
 
+@patch("app.main.waitress")
 @patch("app.main.run_schedule")
 @patch("app.main.JellyfinClient")
-def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedule):
+def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedule, mock_waitress):
     mock_client_cls.return_value = MagicMock()
 
     env = {
@@ -54,9 +55,10 @@ def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedul
     mock_run_schedule.assert_called_once_with(mock_client_cls.return_value, "0 3 * * *", 200)
 
 
+@patch("app.main.waitress")
 @patch("app.main.run_watch")
 @patch("app.main.JellyfinClient")
-def test_main_watch_mode_calls_run_watch(mock_client_cls, mock_run_watch):
+def test_main_watch_mode_calls_run_watch(mock_client_cls, mock_run_watch, mock_waitress):
     mock_client_cls.return_value = MagicMock()
 
     env = {
@@ -184,10 +186,11 @@ def test_main_watch_mode_returns_one_when_jellyfin_unreachable(
 
 
 @patch("app.main.time.sleep")
+@patch("app.main.waitress")
 @patch("app.main.run_schedule")
 @patch("app.main.JellyfinClient")
 def test_main_schedule_mode_proceeds_when_jellyfin_reachable(
-    mock_client_cls, mock_run_schedule, mock_sleep
+    mock_client_cls, mock_run_schedule, mock_waitress, mock_sleep
 ):
     mock_client = MagicMock()
     mock_client.get_all_items.return_value = []
