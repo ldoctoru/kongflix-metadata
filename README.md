@@ -47,6 +47,17 @@ Set `RUN_MODE` in `.env`:
 An item is flagged if it has **no poster image** or **no overview/plot
 text**. Genres, external provider IDs, and other fields are not checked.
 
+## Web dashboard
+
+In `schedule` and `watch` modes, a small web dashboard is served on
+`WEB_PORT` (default `5689`) — e.g. `http://<host>:5689/`. It shows the
+result of the last 20 scans and has a "Scan Now" button to trigger a
+manual scan on demand. `once` mode does not start the dashboard, since
+the container exits immediately after a single scan.
+
+The dashboard has no authentication — it's intended for use on a
+trusted home network, the same as most other Unraid app UIs.
+
 ## Configuration reference
 
 | Variable | Required | Default | Description |
@@ -57,6 +68,7 @@ text**. Genres, external provider IDs, and other fields are not checked.
 | `CRON_SCHEDULE` | no | `0 3 * * *` | Cron expression, used only in `schedule` mode |
 | `LOG_PATH` | no | `/logs/metadata-updater.log` | Path to the summary log file inside the container |
 | `MAX_REFRESHES_PER_RUN` | no | `200` | Caps how many items get a refresh triggered per scan run |
+| `WEB_PORT` | no | `5689` | Port the web dashboard listens on (schedule/watch modes only) |
 
 ## Unraid
 

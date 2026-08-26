@@ -9,5 +9,8 @@ services:
       RUN_MODE: ${RUN_MODE:-schedule}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 3 * * *}
       LOG_PATH: /logs/metadata-updater.log
+      WEB_PORT: ${WEB_PORT:-5689}
+    ports:
+      - "${WEB_PORT:-5689}:5689"
     volumes:
       - ./logs:/logs

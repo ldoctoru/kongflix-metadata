@@ -11,7 +11,7 @@
   <Project>https://github.com/ldoctoru/kongflix-metadata</Project>
   <Overview>Scans a Jellyfin server for items missing a poster image or overview/plot text, and triggers Jellyfin's own metadata refresh for those items so its configured providers (TMDb, TVDB, etc.) can fill in the gaps. Does not call any external metadata provider itself. Supports a scheduled scan (cron), a one-off manual scan, or a continuous watch mode that reacts to newly added library items.</Overview>
   <Category>MediaApp:Video Tools:</Category>
-  <WebUI/>
+  <WebUI>http://[IP]:[PORT:5689]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/unraid-template.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/icon.svg</Icon>
   <ExtraParams/>
@@ -28,4 +28,5 @@
   <Config Name="Max Refreshes Per Run" Target="MAX_REFRESHES_PER_RUN" Default="200" Mode="" Description="Caps how many items get a refresh triggered per scan run, so a large or music-heavy library isn't hammered on the first run." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Log Path" Target="LOG_PATH" Default="/logs/metadata-updater.log" Mode="" Description="Path inside the container where the summary log file is written." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Logs" Target="/logs" Default="/mnt/user/appdata/kongflix-metadata/logs" Mode="rw" Description="Host path for the container's log output." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Web UI Port" Target="5689" Default="5689" Mode="tcp" Description="Port for the web dashboard (schedule/watch modes only)." Type="Port" Display="always" Required="true" Mask="false"/>
 </Container>
