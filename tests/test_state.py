@@ -59,3 +59,21 @@ def test_run_scan_and_record_clears_scanning_flag_on_error(tmp_path):
     from app.history import load_history
     history = load_history(history_path)
     assert history == [{"error": "unreachable"}]
+
+
+def test_run_scan_and_record_releases_lock_on_bookkeeping_error(tmp_path):
+    history_path = str(tmp_path / "history.json")
+    state = AppState()
+    state.try_start_scan()
+
+    client = MagicMock()
+    client.get_all_items.return_value = []
+
+    with patch("app.state.append_history", side_effect=RuntimeError("disk full")):
+        try:
+            run_scan_and_record(state, client, max_refreshes_per_run=200, history_path=history_path)
+        except RuntimeError:
+            pass
+
+    assert state.scanning is False
+    assert state.try_start_scan() is True

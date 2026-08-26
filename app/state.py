@@ -24,15 +24,16 @@ class AppState:
 
 def run_scan_and_record(state: AppState, client, max_refreshes_per_run: int, history_path: str) -> None:
     try:
-        summary = run_once(client, max_refreshes_per_run)
-        log_summary(summary)
-        result = dataclasses.asdict(summary)
-    except JellyfinApiError as error:
-        result = {"error": str(error)}
+        try:
+            summary = run_once(client, max_refreshes_per_run)
+            log_summary(summary)
+            result = dataclasses.asdict(summary)
+        except JellyfinApiError as error:
+            result = {"error": str(error)}
 
-    state.last_result = result
-    state.last_run_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    append_history(history_path, result)
-
-    state.scanning = False
-    state._lock.release()
+        state.last_result = result
+        state.last_run_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        append_history(history_path, result)
+    finally:
+        state.scanning = False
+        state._lock.release()
