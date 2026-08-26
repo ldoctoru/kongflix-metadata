@@ -1,11 +1,16 @@
 import logging
 import os
 import sys
+import threading
 import time
+
+import waitress
 
 from app.config import ConfigError, load_config
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.runner import log_summary, run_once, run_schedule, run_watch
+from app.state import AppState
+from app.web import create_app
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +78,16 @@ def main(env: dict = None) -> int:
         except JellyfinApiError as error:
             logger.error("could not reach Jellyfin: %s", error)
             return 1
+
+        state = AppState()
+        history_path = os.path.join(os.path.dirname(config.log_path) or ".", "scan_history.json")
+        app = create_app(client, state, config.max_refreshes_per_run, history_path)
+        server_thread = threading.Thread(
+            target=lambda: waitress.serve(app, host="0.0.0.0", port=config.web_port),
+            daemon=True,
+        )
+        server_thread.start()
+
         if config.run_mode == "schedule":
             run_schedule(client, config.cron_schedule, config.max_refreshes_per_run)
         else:

@@ -72,6 +72,51 @@ def test_main_watch_mode_calls_run_watch(mock_client_cls, mock_run_watch):
     mock_run_watch.assert_called_once_with(mock_client_cls.return_value)
 
 
+@patch("app.main.waitress")
+@patch("app.main.run_schedule")
+@patch("app.main.JellyfinClient")
+def test_main_schedule_mode_starts_web_server_thread(mock_client_cls, mock_run_schedule, mock_waitress):
+    mock_client_cls.return_value = MagicMock()
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "schedule",
+        "CRON_SCHEDULE": "0 3 * * *",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+        "WEB_PORT": "5689",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 0
+    mock_waitress.serve.assert_called_once()
+    call_args = mock_waitress.serve.call_args
+    assert call_args.kwargs["host"] == "0.0.0.0"
+    assert call_args.kwargs["port"] == 5689
+
+
+@patch("app.main.run_once")
+@patch("app.main.log_summary")
+@patch("app.main.waitress")
+@patch("app.main.JellyfinClient")
+def test_main_once_mode_does_not_start_web_server(mock_client_cls, mock_waitress, mock_log_summary, mock_run_once):
+    mock_client_cls.return_value = MagicMock()
+    mock_run_once.return_value = MagicMock()
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "once",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 0
+    mock_waitress.serve.assert_not_called()
+
+
 @patch("app.main.run_once")
 @patch("app.main.JellyfinClient")
 def test_main_once_mode_returns_one_on_jellyfin_api_error(mock_client_cls, mock_run_once):
