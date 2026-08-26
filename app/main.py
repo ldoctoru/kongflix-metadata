@@ -1,19 +1,24 @@
 import logging
 import os
 import sys
+import time
 
 from app.config import ConfigError, load_config
-from app.jellyfin_client import JellyfinClient
+from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.runner import log_summary, run_once, run_schedule, run_watch
+
+logger = logging.getLogger(__name__)
 
 
 def _setup_logging(log_path: str) -> None:
     handlers = [logging.StreamHandler()]
     try:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        dirname = os.path.dirname(log_path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         handlers.append(logging.FileHandler(log_path))
-    except OSError:
-        pass
+    except OSError as error:
+        print(f"warning: could not set up file logging at {log_path}: {error}", file=sys.stderr)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -21,6 +26,24 @@ def _setup_logging(log_path: str) -> None:
         handlers=handlers,
         force=True,
     )
+
+
+def _wait_for_jellyfin(client: JellyfinClient, max_attempts: int = 5, initial_delay: int = 2) -> None:
+    delay = initial_delay
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            client.get_all_items()
+            return
+        except JellyfinApiError as error:
+            last_error = error
+            logger.warning(
+                "could not reach Jellyfin (attempt %d/%d): %s", attempt, max_attempts, error
+            )
+            if attempt < max_attempts:
+                time.sleep(delay)
+                delay *= 2
+    raise last_error
 
 
 def main(env: dict = None) -> int:
@@ -38,12 +61,22 @@ def main(env: dict = None) -> int:
     client = JellyfinClient(base_url=config.jellyfin_url, api_key=config.jellyfin_api_key)
 
     if config.run_mode == "once":
-        summary = run_once(client)
+        try:
+            summary = run_once(client, config.max_refreshes_per_run)
+        except JellyfinApiError as error:
+            logger.error("could not reach Jellyfin: %s", error)
+            return 1
         log_summary(summary)
-    elif config.run_mode == "schedule":
-        run_schedule(client, config.cron_schedule)
-    elif config.run_mode == "watch":
-        run_watch(client)
+    elif config.run_mode in ("schedule", "watch"):
+        try:
+            _wait_for_jellyfin(client)
+        except JellyfinApiError as error:
+            logger.error("could not reach Jellyfin: %s", error)
+            return 1
+        if config.run_mode == "schedule":
+            run_schedule(client, config.cron_schedule, config.max_refreshes_per_run)
+        else:
+            run_watch(client)
 
     return 0
 

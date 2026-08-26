@@ -1,8 +1,11 @@
 import json
+import logging
 from typing import Callable
 
 import requests
 import websocket
+
+logger = logging.getLogger(__name__)
 
 
 class JellyfinApiError(Exception):
@@ -25,7 +28,10 @@ class JellyfinClient:
             "Recursive": True,
             "Fields": "Overview",
         }
-        response = self.session.get(url, params=params, headers=self._headers(), timeout=30)
+        try:
+            response = self.session.get(url, params=params, headers=self._headers(), timeout=30)
+        except requests.exceptions.RequestException as error:
+            raise JellyfinApiError(str(error)) from error
         if response.status_code != 200:
             raise JellyfinApiError(
                 f"GET {url} failed with status {response.status_code}: {response.text}"
@@ -40,7 +46,10 @@ class JellyfinClient:
             "ReplaceAllMetadata": "false",
             "ReplaceAllImages": "false",
         }
-        response = self.session.post(url, params=params, headers=self._headers(), timeout=30)
+        try:
+            response = self.session.post(url, params=params, headers=self._headers(), timeout=30)
+        except requests.exceptions.RequestException as error:
+            raise JellyfinApiError(str(error)) from error
         if response.status_code not in (200, 204):
             raise JellyfinApiError(
                 f"POST {url} failed with status {response.status_code}: {response.text}"
@@ -59,10 +68,10 @@ class JellyfinClient:
                 on_item_added(item_id)
 
         def on_error(ws, error):
-            pass
+            logger.error("websocket error: %s", error)
 
         def on_close(ws, close_status_code, close_msg):
-            pass
+            logger.warning("websocket closed: code=%s msg=%s", close_status_code, close_msg)
 
         ws_app = self._ws_app_factory(ws_url, on_message=on_message, on_error=on_error, on_close=on_close)
-        ws_app.run_forever()
+        ws_app.run_forever(reconnect=5)

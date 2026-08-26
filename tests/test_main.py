@@ -1,6 +1,7 @@
 import logging
 from unittest.mock import patch, MagicMock
 
+from app.jellyfin_client import JellyfinApiError
 from app.main import main
 
 
@@ -50,7 +51,7 @@ def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedul
     exit_code = main(env)
 
     assert exit_code == 0
-    mock_run_schedule.assert_called_once_with(mock_client_cls.return_value, "0 3 * * *")
+    mock_run_schedule.assert_called_once_with(mock_client_cls.return_value, "0 3 * * *", 200)
 
 
 @patch("app.main.run_watch")
@@ -69,3 +70,93 @@ def test_main_watch_mode_calls_run_watch(mock_client_cls, mock_run_watch):
 
     assert exit_code == 0
     mock_run_watch.assert_called_once_with(mock_client_cls.return_value)
+
+
+@patch("app.main.run_once")
+@patch("app.main.JellyfinClient")
+def test_main_once_mode_returns_one_on_jellyfin_api_error(mock_client_cls, mock_run_once):
+    mock_client_cls.return_value = MagicMock()
+    mock_run_once.side_effect = JellyfinApiError("connection refused")
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "once",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 1
+
+
+@patch("app.main.time.sleep")
+@patch("app.main.run_schedule")
+@patch("app.main.JellyfinClient")
+def test_main_schedule_mode_returns_one_when_jellyfin_unreachable(
+    mock_client_cls, mock_run_schedule, mock_sleep
+):
+    mock_client = MagicMock()
+    mock_client.get_all_items.side_effect = JellyfinApiError("connection refused")
+    mock_client_cls.return_value = mock_client
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "schedule",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 1
+    mock_run_schedule.assert_not_called()
+    assert mock_sleep.called
+
+
+@patch("app.main.time.sleep")
+@patch("app.main.run_watch")
+@patch("app.main.JellyfinClient")
+def test_main_watch_mode_returns_one_when_jellyfin_unreachable(
+    mock_client_cls, mock_run_watch, mock_sleep
+):
+    mock_client = MagicMock()
+    mock_client.get_all_items.side_effect = JellyfinApiError("connection refused")
+    mock_client_cls.return_value = mock_client
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "watch",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 1
+    mock_run_watch.assert_not_called()
+    assert mock_sleep.called
+
+
+@patch("app.main.time.sleep")
+@patch("app.main.run_schedule")
+@patch("app.main.JellyfinClient")
+def test_main_schedule_mode_proceeds_when_jellyfin_reachable(
+    mock_client_cls, mock_run_schedule, mock_sleep
+):
+    mock_client = MagicMock()
+    mock_client.get_all_items.return_value = []
+    mock_client_cls.return_value = mock_client
+
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "RUN_MODE": "schedule",
+        "LOG_PATH": "/tmp/test-metadata-updater.log",
+    }
+
+    exit_code = main(env)
+
+    assert exit_code == 0
+    mock_run_schedule.assert_called_once()
+    mock_sleep.assert_not_called()

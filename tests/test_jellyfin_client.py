@@ -1,7 +1,9 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 from app.jellyfin_client import JellyfinClient, JellyfinApiError
 
@@ -41,6 +43,16 @@ def test_get_all_items_raises_on_error_status():
         client.get_all_items()
 
 
+def test_get_all_items_raises_jellyfin_error_on_connection_error():
+    session = MagicMock()
+    session.get.side_effect = requests.exceptions.ConnectionError("boom")
+
+    client = make_client(session)
+
+    with pytest.raises(JellyfinApiError):
+        client.get_all_items()
+
+
 def test_refresh_item_calls_correct_endpoint_with_params():
     session = MagicMock()
     response = MagicMock()
@@ -72,6 +84,16 @@ def test_refresh_item_raises_on_error_status():
 
     with pytest.raises(JellyfinApiError):
         client.refresh_item("missing-item")
+
+
+def test_refresh_item_raises_jellyfin_error_on_connection_error():
+    session = MagicMock()
+    session.post.side_effect = requests.exceptions.ConnectionError("boom")
+
+    client = make_client(session)
+
+    with pytest.raises(JellyfinApiError):
+        client.refresh_item("item-123")
 
 
 def test_listen_for_library_changes_invokes_callback_for_added_items():
@@ -118,3 +140,42 @@ def test_listen_for_library_changes_ignores_other_message_types():
     fake_ws_app.on_message(fake_ws_app, message)
 
     assert received == []
+
+
+def test_listen_for_library_changes_calls_run_forever_with_reconnect():
+    session = MagicMock()
+    client = make_client(session)
+
+    fake_ws_app = MagicMock()
+
+    def fake_ws_app_factory(url, on_message, on_error, on_close):
+        return fake_ws_app
+
+    client._ws_app_factory = fake_ws_app_factory
+
+    client.listen_for_library_changes(lambda item_id: None)
+
+    fake_ws_app.run_forever.assert_called_once_with(reconnect=5)
+
+
+def test_listen_for_library_changes_logs_on_error_and_on_close(caplog):
+    session = MagicMock()
+    client = make_client(session)
+
+    fake_ws_app = MagicMock()
+    captured = {}
+
+    def fake_ws_app_factory(url, on_message, on_error, on_close):
+        captured["on_error"] = on_error
+        captured["on_close"] = on_close
+        return fake_ws_app
+
+    client._ws_app_factory = fake_ws_app_factory
+
+    with caplog.at_level(logging.WARNING):
+        client.listen_for_library_changes(lambda item_id: None)
+        captured["on_error"](fake_ws_app, "connection reset")
+        captured["on_close"](fake_ws_app, 1006, "abnormal closure")
+
+    assert "connection reset" in caplog.text
+    assert "abnormal closure" in caplog.text
