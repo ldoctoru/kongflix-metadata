@@ -1,4 +1,8 @@
+import json
+from typing import Callable
+
 import requests
+import websocket
 
 
 class JellyfinApiError(Exception):
@@ -10,6 +14,7 @@ class JellyfinClient:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.session = session or requests.Session()
+        self._ws_app_factory = websocket.WebSocketApp
 
     def _headers(self) -> dict:
         return {"X-Emby-Token": self.api_key}
@@ -40,3 +45,24 @@ class JellyfinClient:
             raise JellyfinApiError(
                 f"POST {url} failed with status {response.status_code}: {response.text}"
             )
+
+    def listen_for_library_changes(self, on_item_added: Callable[[str], None]) -> None:
+        ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws_url = f"{ws_url}/socket?api_key={self.api_key}"
+
+        def on_message(ws, message):
+            data = json.loads(message)
+            if data.get("MessageType") != "LibraryChanged":
+                return
+            items_added = data.get("Data", {}).get("ItemsAdded", [])
+            for item_id in items_added:
+                on_item_added(item_id)
+
+        def on_error(ws, error):
+            pass
+
+        def on_close(ws, close_status_code, close_msg):
+            pass
+
+        ws_app = self._ws_app_factory(ws_url, on_message=on_message, on_error=on_error, on_close=on_close)
+        ws_app.run_forever()

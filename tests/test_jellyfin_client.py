@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -71,3 +72,49 @@ def test_refresh_item_raises_on_error_status():
 
     with pytest.raises(JellyfinApiError):
         client.refresh_item("missing-item")
+
+
+def test_listen_for_library_changes_invokes_callback_for_added_items():
+    session = MagicMock()
+    client = make_client(session)
+
+    received = []
+    fake_ws_app = MagicMock()
+
+    def fake_ws_app_factory(url, on_message, on_error, on_close):
+        fake_ws_app.on_message = on_message
+        return fake_ws_app
+
+    client._ws_app_factory = fake_ws_app_factory
+
+    client.listen_for_library_changes(lambda item_id: received.append(item_id))
+
+    message = json.dumps({
+        "MessageType": "LibraryChanged",
+        "Data": {"ItemsAdded": ["item-a", "item-b"], "ItemsUpdated": []},
+    })
+    fake_ws_app.on_message(fake_ws_app, message)
+
+    assert received == ["item-a", "item-b"]
+    fake_ws_app.run_forever.assert_called_once()
+
+
+def test_listen_for_library_changes_ignores_other_message_types():
+    session = MagicMock()
+    client = make_client(session)
+
+    received = []
+    fake_ws_app = MagicMock()
+
+    def fake_ws_app_factory(url, on_message, on_error, on_close):
+        fake_ws_app.on_message = on_message
+        return fake_ws_app
+
+    client._ws_app_factory = fake_ws_app_factory
+
+    client.listen_for_library_changes(lambda item_id: received.append(item_id))
+
+    message = json.dumps({"MessageType": "SessionsStart", "Data": {}})
+    fake_ws_app.on_message(fake_ws_app, message)
+
+    assert received == []
