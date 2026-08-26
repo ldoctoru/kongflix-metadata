@@ -56,6 +56,7 @@ text**. Genres, external provider IDs, and other fields are not checked.
 | `RUN_MODE` | no | `schedule` | `schedule` \| `once` \| `watch` |
 | `CRON_SCHEDULE` | no | `0 3 * * *` | Cron expression, used only in `schedule` mode |
 | `LOG_PATH` | no | `/logs/metadata-updater.log` | Path to the summary log file inside the container |
+| `MAX_REFRESHES_PER_RUN` | no | `200` | Caps how many items get a refresh triggered per scan run |
 
 ## Development
 

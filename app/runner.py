@@ -13,16 +13,20 @@ class ScanSummary:
     flagged: int
     refreshed: int
     failures: list = field(default_factory=list)
+    skipped: int = 0
 
 
-def run_once(client: JellyfinClient) -> ScanSummary:
+def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> ScanSummary:
     items = client.get_all_items()
     flagged_items = find_items_missing_metadata(items)
+
+    items_to_refresh = flagged_items[:max_refreshes_per_run]
+    skipped = max(0, len(flagged_items) - max_refreshes_per_run)
 
     refreshed = 0
     failures = []
 
-    for item in flagged_items:
+    for item in items_to_refresh:
         try:
             client.refresh_item(item["Id"])
             refreshed += 1
@@ -34,6 +38,7 @@ def run_once(client: JellyfinClient) -> ScanSummary:
         flagged=len(flagged_items),
         refreshed=refreshed,
         failures=failures,
+        skipped=skipped,
     )
 
 
@@ -50,11 +55,13 @@ def log_summary(summary: ScanSummary) -> None:
     )
     for name, error_message in summary.failures:
         logger.error("failed to refresh %s: %s", name, error_message)
+    if summary.skipped > 0:
+        logger.info("scan skipped=%d items this round (per-run refresh cap reached)", summary.skipped)
 
 
-def run_schedule(client: JellyfinClient, cron_schedule: str) -> None:
+def run_schedule(client: JellyfinClient, cron_schedule: str, max_refreshes_per_run: int = 200) -> None:
     def scan_job():
-        summary = run_once(client)
+        summary = run_once(client, max_refreshes_per_run)
         log_summary(summary)
 
     scan_job()

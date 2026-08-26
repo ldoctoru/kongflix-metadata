@@ -14,6 +14,7 @@ class Config:
     run_mode: str
     cron_schedule: str
     log_path: str
+    max_refreshes_per_run: int
 
 
 def load_config(env: dict) -> Config:
@@ -30,7 +31,25 @@ def load_config(env: dict) -> Config:
         raise ConfigError(f"RUN_MODE must be one of {sorted(VALID_RUN_MODES)}, got {run_mode!r}")
 
     cron_schedule = env.get("CRON_SCHEDULE", "0 3 * * *")
+    cron_fields = cron_schedule.split()
+    if len(cron_fields) != 5:
+        raise ConfigError(
+            f"CRON_SCHEDULE must have exactly 5 space-separated fields, got {cron_schedule!r}"
+        )
+
     log_path = env.get("LOG_PATH", "/logs/metadata-updater.log")
+
+    max_refreshes_per_run_raw = env.get("MAX_REFRESHES_PER_RUN", "200")
+    try:
+        max_refreshes_per_run = int(max_refreshes_per_run_raw)
+    except (TypeError, ValueError):
+        raise ConfigError(
+            f"MAX_REFRESHES_PER_RUN must be a positive integer, got {max_refreshes_per_run_raw!r}"
+        )
+    if max_refreshes_per_run <= 0:
+        raise ConfigError(
+            f"MAX_REFRESHES_PER_RUN must be a positive integer, got {max_refreshes_per_run_raw!r}"
+        )
 
     return Config(
         jellyfin_url=jellyfin_url,
@@ -38,4 +57,5 @@ def load_config(env: dict) -> Config:
         run_mode=run_mode,
         cron_schedule=cron_schedule,
         log_path=log_path,
+        max_refreshes_per_run=max_refreshes_per_run,
     )

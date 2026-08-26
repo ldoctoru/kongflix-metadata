@@ -54,7 +54,23 @@ def test_run_once_with_no_missing_items():
 
     summary = run_once(client)
 
-    assert summary == ScanSummary(scanned=1, flagged=0, refreshed=0, failures=[])
+    assert summary == ScanSummary(scanned=1, flagged=0, refreshed=0, failures=[], skipped=0)
+
+
+def test_run_once_caps_refreshes_per_run():
+    client = MagicMock()
+    client.get_all_items.return_value = [
+        {"Id": "1", "Name": "Missing 1", "Overview": "", "ImageTags": {}},
+        {"Id": "2", "Name": "Missing 2", "Overview": "", "ImageTags": {}},
+        {"Id": "3", "Name": "Missing 3", "Overview": "", "ImageTags": {}},
+    ]
+
+    summary = run_once(client, max_refreshes_per_run=1)
+
+    assert summary.flagged == 3
+    assert summary.refreshed == 1
+    assert summary.skipped == 2
+    assert client.refresh_item.call_count == 1
 
 
 def test_log_summary_logs_counts_and_failures(caplog):

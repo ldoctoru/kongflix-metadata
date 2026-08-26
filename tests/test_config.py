@@ -16,6 +16,7 @@ def test_loads_required_and_default_values():
         run_mode="schedule",
         cron_schedule="0 3 * * *",
         log_path="/logs/metadata-updater.log",
+        max_refreshes_per_run=200,
     )
 
 
@@ -51,6 +52,57 @@ def test_invalid_run_mode_raises():
         "JELLYFIN_URL": "http://jellyfin.local:8096",
         "JELLYFIN_API_KEY": "secret-key",
         "RUN_MODE": "not-a-real-mode",
+    }
+    with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_invalid_cron_schedule_raises():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "CRON_SCHEDULE": "0 3 * *",
+    }
+    with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_default_max_refreshes_per_run_is_200():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+    }
+    config = load_config(env)
+
+    assert config.max_refreshes_per_run == 200
+
+
+def test_max_refreshes_per_run_can_be_overridden():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "MAX_REFRESHES_PER_RUN": "50",
+    }
+    config = load_config(env)
+
+    assert config.max_refreshes_per_run == 50
+
+
+def test_invalid_max_refreshes_per_run_raises():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "MAX_REFRESHES_PER_RUN": "not-a-number",
+    }
+    with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_zero_max_refreshes_per_run_raises():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "MAX_REFRESHES_PER_RUN": "0",
     }
     with pytest.raises(ConfigError):
         load_config(env)
