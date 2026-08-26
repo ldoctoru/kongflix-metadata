@@ -17,6 +17,7 @@ def test_loads_required_and_default_values():
         cron_schedule="0 3 * * *",
         log_path="/logs/metadata-updater.log",
         max_refreshes_per_run=200,
+        web_port=5689,
     )
 
 
@@ -103,6 +104,42 @@ def test_zero_max_refreshes_per_run_raises():
         "JELLYFIN_URL": "http://jellyfin.local:8096",
         "JELLYFIN_API_KEY": "secret-key",
         "MAX_REFRESHES_PER_RUN": "0",
+    }
+    with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_default_web_port_is_5689():
+    env = {"JELLYFIN_URL": "http://jellyfin.local:8096", "JELLYFIN_API_KEY": "secret-key"}
+    config = load_config(env)
+    assert config.web_port == 5689
+
+
+def test_web_port_can_be_overridden():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "WEB_PORT": "9000",
+    }
+    config = load_config(env)
+    assert config.web_port == 9000
+
+
+def test_invalid_web_port_raises():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "WEB_PORT": "not-a-number",
+    }
+    with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_web_port_out_of_range_raises():
+    env = {
+        "JELLYFIN_URL": "http://jellyfin.local:8096",
+        "JELLYFIN_API_KEY": "secret-key",
+        "WEB_PORT": "70000",
     }
     with pytest.raises(ConfigError):
         load_config(env)

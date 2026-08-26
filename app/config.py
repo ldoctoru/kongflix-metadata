@@ -15,6 +15,7 @@ class Config:
     cron_schedule: str
     log_path: str
     max_refreshes_per_run: int
+    web_port: int
 
 
 def load_config(env: dict) -> Config:
@@ -51,6 +52,14 @@ def load_config(env: dict) -> Config:
             f"MAX_REFRESHES_PER_RUN must be a positive integer, got {max_refreshes_per_run_raw!r}"
         )
 
+    web_port_raw = env.get("WEB_PORT", "5689")
+    try:
+        web_port = int(web_port_raw)
+    except (TypeError, ValueError):
+        raise ConfigError(f"WEB_PORT must be an integer between 1 and 65535, got {web_port_raw!r}")
+    if not (1 <= web_port <= 65535):
+        raise ConfigError(f"WEB_PORT must be an integer between 1 and 65535, got {web_port_raw!r}")
+
     return Config(
         jellyfin_url=jellyfin_url,
         jellyfin_api_key=jellyfin_api_key,
@@ -58,4 +67,5 @@ def load_config(env: dict) -> Config:
         cron_schedule=cron_schedule,
         log_path=log_path,
         max_refreshes_per_run=max_refreshes_per_run,
+        web_port=web_port,
     )
