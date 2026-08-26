@@ -1,8 +1,9 @@
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, patch, MagicMock
 
 from app.jellyfin_client import JellyfinApiError
 from app.main import main
+from app.state import AppState
 
 
 @patch("app.main.run_once")
@@ -52,7 +53,13 @@ def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedul
     exit_code = main(env)
 
     assert exit_code == 0
-    mock_run_schedule.assert_called_once_with(mock_client_cls.return_value, "0 3 * * *", 200)
+    mock_run_schedule.assert_called_once()
+    call_args = mock_run_schedule.call_args
+    assert call_args.args[0] == mock_client_cls.return_value
+    assert call_args.args[1] == "0 3 * * *"
+    assert call_args.args[2] == 200
+    assert isinstance(call_args.args[3], AppState)
+    assert isinstance(call_args.args[4], str)
 
 
 @patch("app.main.waitress")
@@ -92,7 +99,14 @@ def test_main_schedule_mode_starts_web_server_thread(mock_client_cls, mock_run_s
     exit_code = main(env)
 
     assert exit_code == 0
-    mock_waitress.serve.assert_called_once()
+
+    import time as time_module
+
+    deadline = time_module.time() + 1.0
+    while not mock_waitress.serve.called and time_module.time() < deadline:
+        time_module.sleep(0.01)
+
+    assert mock_waitress.serve.called
     call_args = mock_waitress.serve.call_args
     assert call_args.kwargs["host"] == "0.0.0.0"
     assert call_args.kwargs["port"] == 5689

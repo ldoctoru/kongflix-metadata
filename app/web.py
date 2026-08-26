@@ -3,7 +3,8 @@ import threading
 from flask import Flask, jsonify, render_template_string
 
 from app.history import load_history
-from app.state import AppState, run_scan_and_record
+from app.runner import run_scan_and_record
+from app.state import AppState
 
 INDEX_TEMPLATE = """
 <!doctype html>
@@ -49,10 +50,17 @@ INDEX_TEMPLATE = """
       for (const entry of data.slice().reverse()) {
         const row = document.createElement("tr");
         if (entry.error) {
-          row.innerHTML = "<td colspan='5'>Error: " + entry.error + "</td>";
+          const cell = document.createElement("td");
+          cell.colSpan = 5;
+          cell.textContent = "Error: " + entry.error;
+          row.appendChild(cell);
         } else {
-          row.innerHTML = "<td>" + entry.scanned + "</td><td>" + entry.flagged + "</td><td>" +
-            entry.refreshed + "</td><td>" + entry.skipped + "</td><td>" + entry.failures.length + "</td>";
+          const values = [entry.scanned, entry.flagged, entry.refreshed, entry.skipped, entry.failures.length];
+          for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+          }
         }
         tbody.appendChild(row);
       }

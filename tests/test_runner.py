@@ -1,9 +1,10 @@
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from app.jellyfin_client import JellyfinApiError
-from app.runner import run_once, ScanSummary
+from app.runner import run_once, run_schedule, ScanSummary
 from app.runner import log_summary, run_watch
+from app.state import AppState
 
 
 def test_run_once_refreshes_only_flagged_items():
@@ -86,6 +87,45 @@ def test_log_summary_logs_counts_and_failures(caplog):
     assert "refreshed=1" in caplog.text
     assert "Bad Item" in caplog.text
     assert "boom" in caplog.text
+
+
+@patch("app.runner.BlockingScheduler")
+def test_run_schedule_skips_scan_when_one_already_in_progress(mock_scheduler_cls, tmp_path):
+    history_path = str(tmp_path / "history.json")
+    state = AppState()
+    state.try_start_scan()  # simulate a scan already in progress (lock held)
+
+    client = MagicMock()
+
+    with patch("app.runner.run_once") as mock_run_once:
+        run_schedule(client, "0 3 * * *", 200, state, history_path)
+
+    mock_run_once.assert_not_called()
+    mock_scheduler_cls.return_value.start.assert_called_once()
+
+
+@patch("app.runner.BlockingScheduler")
+def test_run_schedule_runs_scan_via_state_when_idle(mock_scheduler_cls, tmp_path):
+    history_path = str(tmp_path / "history.json")
+    state = AppState()
+
+    client = MagicMock()
+    client.get_all_items.return_value = []
+
+    run_schedule(client, "0 3 * * *", 200, state, history_path)
+
+    assert state.last_result == {
+        "scanned": 0,
+        "flagged": 0,
+        "refreshed": 0,
+        "failures": [],
+        "skipped": 0,
+    }
+    assert state.scanning is False
+
+    from app.history import load_history
+    history = load_history(history_path)
+    assert len(history) == 1
 
 
 def test_run_watch_refreshes_items_reported_by_listener():

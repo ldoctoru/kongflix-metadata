@@ -1,8 +1,11 @@
+import dataclasses
+import datetime
 import logging
 from dataclasses import dataclass, field
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+from app.history import append_history
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.scanner import find_items_missing_metadata
 
@@ -59,10 +62,29 @@ def log_summary(summary: ScanSummary) -> None:
         logger.info("scan skipped=%d items this round (per-run refresh cap reached)", summary.skipped)
 
 
-def run_schedule(client: JellyfinClient, cron_schedule: str, max_refreshes_per_run: int = 200) -> None:
+def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path: str) -> None:
+    try:
+        try:
+            summary = run_once(client, max_refreshes_per_run)
+            log_summary(summary)
+            result = dataclasses.asdict(summary)
+        except JellyfinApiError as error:
+            result = {"error": str(error)}
+
+        state.last_result = result
+        state.last_run_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        append_history(history_path, result)
+    finally:
+        state.scanning = False
+        state._lock.release()
+
+
+def run_schedule(client: JellyfinClient, cron_schedule: str, max_refreshes_per_run: int, state, history_path: str) -> None:
     def scan_job():
-        summary = run_once(client, max_refreshes_per_run)
-        log_summary(summary)
+        if not state.try_start_scan():
+            logger.info("skipping scheduled scan: a scan is already in progress")
+            return
+        run_scan_and_record(state, client, max_refreshes_per_run, history_path)
 
     scan_job()
 

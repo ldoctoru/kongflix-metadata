@@ -89,7 +89,7 @@ def main(env: dict = None) -> int:
         server_thread.start()
 
         if config.run_mode == "schedule":
-            run_schedule(client, config.cron_schedule, config.max_refreshes_per_run)
+            run_schedule(client, config.cron_schedule, config.max_refreshes_per_run, state, history_path)
         else:
             run_watch(client)
 

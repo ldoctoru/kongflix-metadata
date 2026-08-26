@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 from app.jellyfin_client import JellyfinApiError
-from app.runner import ScanSummary
-from app.state import AppState, run_scan_and_record
+from app.runner import ScanSummary, run_scan_and_record
+from app.state import AppState
 
 
 def test_try_start_scan_succeeds_when_idle():
@@ -69,7 +69,7 @@ def test_run_scan_and_record_releases_lock_on_bookkeeping_error(tmp_path):
     client = MagicMock()
     client.get_all_items.return_value = []
 
-    with patch("app.state.append_history", side_effect=RuntimeError("disk full")):
+    with patch("app.runner.append_history", side_effect=RuntimeError("disk full")):
         try:
             run_scan_and_record(state, client, max_refreshes_per_run=200, history_path=history_path)
         except RuntimeError:
