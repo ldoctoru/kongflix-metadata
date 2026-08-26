@@ -11,6 +11,6 @@ services:
       LOG_PATH: /logs/metadata-updater.log
       WEB_PORT: ${WEB_PORT:-5689}
     ports:
-      - "${WEB_PORT:-5689}:5689"
+      - "${WEB_PORT:-5689}:${WEB_PORT:-5689}"
     volumes:
       - ./logs:/logs
