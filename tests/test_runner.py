@@ -10,12 +10,12 @@ from app.state import AppState
 def test_run_once_refreshes_only_flagged_items():
     client = MagicMock()
     client.get_all_items.return_value = [
-        {"Id": "1", "Name": "Complete", "Overview": "ok", "ImageTags": {"Primary": "x"}},
-        {"Id": "2", "Name": "Missing Poster", "Overview": "ok", "ImageTags": {}},
-        {"Id": "3", "Name": "Missing Overview", "Overview": "", "ImageTags": {"Primary": "x"}},
+        {"Id": "1", "Name": "Complete", "Type": "Movie", "Overview": "ok", "ImageTags": {"Primary": "x"}},
+        {"Id": "2", "Name": "Missing Poster", "Type": "Movie", "Overview": "ok", "ImageTags": {}},
+        {"Id": "3", "Name": "Missing Overview", "Type": "Series", "Overview": "", "ImageTags": {"Primary": "x"}},
     ]
 
-    summary = run_once(client)
+    summary, missing_items = run_once(client)
 
     assert summary.scanned == 3
     assert summary.flagged == 2
@@ -25,12 +25,17 @@ def test_run_once_refreshes_only_flagged_items():
     client.refresh_item.assert_any_call("3")
     assert client.refresh_item.call_count == 2
 
+    assert len(missing_items) == 2
+    by_id = {entry["id"]: entry for entry in missing_items}
+    assert by_id["2"] == {"id": "2", "name": "Missing Poster", "type": "Movie", "missing": ["poster"], "status": "refreshed"}
+    assert by_id["3"] == {"id": "3", "name": "Missing Overview", "type": "Series", "missing": ["overview"], "status": "refreshed"}
+
 
 def test_run_once_isolates_per_item_failures():
     client = MagicMock()
     client.get_all_items.return_value = [
-        {"Id": "1", "Name": "Bad Item", "Overview": "", "ImageTags": {}},
-        {"Id": "2", "Name": "Good Item", "Overview": "", "ImageTags": {}},
+        {"Id": "1", "Name": "Bad Item", "Type": "Movie", "Overview": "", "ImageTags": {}},
+        {"Id": "2", "Name": "Good Item", "Type": "Movie", "Overview": "", "ImageTags": {}},
     ]
 
     def refresh_side_effect(item_id):
@@ -39,39 +44,66 @@ def test_run_once_isolates_per_item_failures():
 
     client.refresh_item.side_effect = refresh_side_effect
 
-    summary = run_once(client)
+    summary, missing_items = run_once(client)
 
     assert summary.scanned == 2
     assert summary.flagged == 2
     assert summary.refreshed == 1
     assert summary.failures == [("Bad Item", "boom")]
 
+    by_id = {entry["id"]: entry for entry in missing_items}
+    assert by_id["1"]["status"] == "failed"
+    assert by_id["2"]["status"] == "refreshed"
+
 
 def test_run_once_with_no_missing_items():
     client = MagicMock()
     client.get_all_items.return_value = [
-        {"Id": "1", "Name": "Complete", "Overview": "ok", "ImageTags": {"Primary": "x"}},
+        {"Id": "1", "Name": "Complete", "Type": "Movie", "Overview": "ok", "ImageTags": {"Primary": "x"}},
     ]
 
-    summary = run_once(client)
+    summary, missing_items = run_once(client)
 
     assert summary == ScanSummary(scanned=1, flagged=0, refreshed=0, failures=[], skipped=0)
+    assert missing_items == []
 
 
 def test_run_once_caps_refreshes_per_run():
     client = MagicMock()
     client.get_all_items.return_value = [
-        {"Id": "1", "Name": "Missing 1", "Overview": "", "ImageTags": {}},
-        {"Id": "2", "Name": "Missing 2", "Overview": "", "ImageTags": {}},
-        {"Id": "3", "Name": "Missing 3", "Overview": "", "ImageTags": {}},
+        {"Id": "1", "Name": "Missing 1", "Type": "Movie", "Overview": "", "ImageTags": {}},
+        {"Id": "2", "Name": "Missing 2", "Type": "Movie", "Overview": "", "ImageTags": {}},
+        {"Id": "3", "Name": "Missing 3", "Type": "Movie", "Overview": "", "ImageTags": {}},
     ]
 
-    summary = run_once(client, max_refreshes_per_run=1)
+    summary, missing_items = run_once(client, max_refreshes_per_run=1)
 
     assert summary.flagged == 3
     assert summary.refreshed == 1
     assert summary.skipped == 2
     assert client.refresh_item.call_count == 1
+
+    statuses = sorted(entry["status"] for entry in missing_items)
+    assert statuses == ["pending", "pending", "refreshed"]
+
+
+def test_run_once_missing_items_failed_count_matches_summary_failures():
+    client = MagicMock()
+    client.get_all_items.return_value = [
+        {"Id": "1", "Name": "Bad Item", "Type": "Movie", "Overview": "", "ImageTags": {}},
+        {"Id": "2", "Name": "Good Item", "Type": "Movie", "Overview": "", "ImageTags": {}},
+    ]
+
+    def refresh_side_effect(item_id):
+        if item_id == "1":
+            raise JellyfinApiError("boom")
+
+    client.refresh_item.side_effect = refresh_side_effect
+
+    summary, missing_items = run_once(client)
+
+    failed_count = len([entry for entry in missing_items if entry["status"] == "failed"])
+    assert failed_count == len(summary.failures)
 
 
 def test_log_summary_logs_counts_and_failures(caplog):

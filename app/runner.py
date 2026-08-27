@@ -7,7 +7,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from app.history import append_history
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
-from app.scanner import find_items_missing_metadata
+from app.scanner import describe_missing_reasons, find_items_missing_metadata
 
 
 @dataclass(eq=True)
@@ -19,30 +19,52 @@ class ScanSummary:
     skipped: int = 0
 
 
-def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> ScanSummary:
+def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> tuple[ScanSummary, list]:
     items = client.get_all_items()
     flagged_items = find_items_missing_metadata(items)
 
     items_to_refresh = flagged_items[:max_refreshes_per_run]
-    skipped = max(0, len(flagged_items) - max_refreshes_per_run)
+    pending_items = flagged_items[max_refreshes_per_run:]
+    skipped = len(pending_items)
 
     refreshed = 0
     failures = []
+    missing_items = []
 
     for item in items_to_refresh:
+        reasons = describe_missing_reasons(item)
         try:
             client.refresh_item(item["Id"])
             refreshed += 1
+            status = "refreshed"
         except JellyfinApiError as error:
             failures.append((item.get("Name", item["Id"]), str(error)))
+            status = "failed"
+        missing_items.append({
+            "id": item.get("Id"),
+            "name": item.get("Name", item.get("Id")),
+            "type": item.get("Type", "Unknown"),
+            "missing": reasons,
+            "status": status,
+        })
 
-    return ScanSummary(
+    for item in pending_items:
+        missing_items.append({
+            "id": item.get("Id"),
+            "name": item.get("Name", item.get("Id")),
+            "type": item.get("Type", "Unknown"),
+            "missing": describe_missing_reasons(item),
+            "status": "pending",
+        })
+
+    summary = ScanSummary(
         scanned=len(items),
         flagged=len(flagged_items),
         refreshed=refreshed,
         failures=failures,
         skipped=skipped,
     )
+    return summary, missing_items
 
 
 logger = logging.getLogger("jellyfin_metadata_updater")
