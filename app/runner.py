@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import logging
+import threading
 from dataclasses import dataclass, field
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -8,6 +9,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from app.history import append_history, load_missing_items, save_missing_items
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.scanner import describe_missing_reasons, find_items_missing_metadata
+
+_missing_items_lock = threading.Lock()
 
 
 @dataclass(eq=True)
@@ -103,7 +106,8 @@ def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path:
         append_history(history_path, result)
 
         if missing_items is not None:
-            save_missing_items(missing_items_path, missing_items)
+            with _missing_items_lock:
+                save_missing_items(missing_items_path, missing_items)
     finally:
         state.scanning = False
         state._lock.release()
@@ -144,24 +148,42 @@ def run_watch(client: JellyfinClient) -> None:
 
 
 def retry_item(client: JellyfinClient, missing_items_path: str, item_id: str) -> dict | None:
-    items = load_missing_items(missing_items_path)
-
-    target = None
-    for entry in items:
-        if entry.get("id") == item_id:
-            target = entry
-            break
-
-    if target is None:
-        return None
+    with _missing_items_lock:
+        items = load_missing_items(missing_items_path)
+        if not any(entry.get("id") == item_id for entry in items):
+            return None
 
     try:
         client.refresh_item(item_id)
-        target["status"] = "refreshed"
-        target.pop("error", None)
+        refresh_succeeded = True
+        error_message = None
     except JellyfinApiError as error:
-        target["status"] = "failed"
-        target["error"] = str(error)
+        refresh_succeeded = False
+        error_message = str(error)
 
-    save_missing_items(missing_items_path, items)
-    return target
+    with _missing_items_lock:
+        items = load_missing_items(missing_items_path)
+        target = None
+        for entry in items:
+            if entry.get("id") == item_id:
+                target = entry
+                break
+
+        if target is None:
+            # Item disappeared from the snapshot while the network call was in
+            # flight (e.g. a scan replaced the whole list). Nothing to patch or
+            # persist; report the retry outcome without touching the file.
+            result = {"id": item_id, "status": "refreshed" if refresh_succeeded else "failed"}
+            if not refresh_succeeded:
+                result["error"] = error_message
+            return result
+
+        if refresh_succeeded:
+            target["status"] = "refreshed"
+            target.pop("error", None)
+        else:
+            target["status"] = "failed"
+            target["error"] = error_message
+
+        save_missing_items(missing_items_path, items)
+        return target

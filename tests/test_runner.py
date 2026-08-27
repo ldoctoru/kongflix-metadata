@@ -277,5 +277,64 @@ def test_retry_item_returns_none_for_unknown_id(tmp_path):
     assert result is None
     client.refresh_item.assert_not_called()
 
+
+def test_retry_item_survives_concurrent_scan_write(tmp_path):
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+
+    client = MagicMock()
+
+    def refresh_side_effect(item_id):
+        # Simulate a full scan completing and overwriting the snapshot
+        # WHILE retry_item's network call is in flight.
+        save_missing_items(missing_items_path, [
+            {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "pending"},
+            {"id": "2", "name": "New Item From Scan", "type": "Movie", "series": None, "season": None, "missing": ["overview"], "status": "pending"},
+        ])
+
+    client.refresh_item.side_effect = refresh_side_effect
+
+    result = retry_item(client, missing_items_path, "1")
+
+    assert result["id"] == "1"
+    assert result["status"] == "refreshed"
+
     snapshot = load_missing_items(missing_items_path)
-    assert snapshot[0]["status"] == "failed"
+    by_id = {entry["id"]: entry for entry in snapshot}
+    # The scan's fresh item must survive — NOT be clobbered by retry_item's stale write.
+    assert "2" in by_id
+    assert by_id["2"]["name"] == "New Item From Scan"
+    # Item 1's status must reflect the retry (refreshed), applied on top of the scan's fresh list.
+    assert by_id["1"]["status"] == "refreshed"
+
+
+def test_retry_item_when_item_removed_by_concurrent_scan(tmp_path):
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+
+    client = MagicMock()
+
+    def refresh_side_effect(item_id):
+        # Simulate a scan completing that found this item now fixed — it's no longer in the list.
+        save_missing_items(missing_items_path, [
+            {"id": "2", "name": "Different Item", "type": "Movie", "series": None, "season": None, "missing": ["overview"], "status": "pending"},
+        ])
+
+    client.refresh_item.side_effect = refresh_side_effect
+
+    result = retry_item(client, missing_items_path, "1")
+
+    # The refresh call succeeded and the item existed at the time the retry was
+    # requested, but it's gone from the snapshot after the concurrent scan —
+    # retry_item reports the outcome without resurrecting the item in the file.
+    assert result == {"id": "1", "status": "refreshed"}
+
+    snapshot = load_missing_items(missing_items_path)
+    by_id = {entry["id"]: entry for entry in snapshot}
+    assert "1" not in by_id
+    assert "2" in by_id
+    assert by_id["2"]["name"] == "Different Item"
