@@ -27,8 +27,31 @@ def test_run_once_refreshes_only_flagged_items():
 
     assert len(missing_items) == 2
     by_id = {entry["id"]: entry for entry in missing_items}
-    assert by_id["2"] == {"id": "2", "name": "Missing Poster", "type": "Movie", "missing": ["poster"], "status": "refreshed"}
-    assert by_id["3"] == {"id": "3", "name": "Missing Overview", "type": "Series", "missing": ["overview"], "status": "refreshed"}
+    assert by_id["2"] == {"id": "2", "name": "Missing Poster", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "refreshed"}
+    assert by_id["3"] == {"id": "3", "name": "Missing Overview", "type": "Series", "series": None, "season": None, "missing": ["overview"], "status": "refreshed"}
+
+
+def test_run_once_includes_series_and_season_for_episodes():
+    client = MagicMock()
+    client.get_all_items.return_value = [
+        {
+            "Id": "1",
+            "Name": "Pilot",
+            "Type": "Episode",
+            "SeriesName": "Breaking Bad",
+            "ParentIndexNumber": 1,
+            "Overview": "",
+            "ImageTags": {},
+        },
+    ]
+
+    summary, missing_items = run_once(client)
+
+    assert len(missing_items) == 1
+    entry = missing_items[0]
+    assert entry["type"] == "Episode"
+    assert entry["series"] == "Breaking Bad"
+    assert entry["season"] == 1
 
 
 def test_run_once_isolates_per_item_failures():

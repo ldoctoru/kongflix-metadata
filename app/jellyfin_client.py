@@ -26,7 +26,7 @@ class JellyfinClient:
         url = f"{self.base_url}/Items"
         params = {
             "Recursive": True,
-            "Fields": "Overview",
+            "Fields": "Overview,SeriesName,ParentIndexNumber",
         }
         try:
             response = self.session.get(url, params=params, headers=self._headers(), timeout=30)

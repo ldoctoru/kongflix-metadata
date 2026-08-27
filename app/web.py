@@ -38,7 +38,7 @@ INDEX_TEMPLATE = """
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     min-height: 100vh;
   }
-  .wrap { max-width: 880px; margin: 0 auto; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
 
   header { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 2rem; }
   header .logo { width: 44px; height: 44px; flex-shrink: 0; }
@@ -128,7 +128,7 @@ INDEX_TEMPLATE = """
 
   .history-card { padding: 0.3rem; overflow: hidden; }
   .table-scroll { overflow-x: auto; }
-  table { width: 100%; min-width: 480px; border-collapse: collapse; }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; }
   thead th {
     text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-dim); font-weight: 600;
@@ -164,6 +164,9 @@ INDEX_TEMPLATE = """
   .type-tag {
     font-size: 0.72rem; color: var(--text-dim); background: rgba(156, 153, 184, 0.12);
     padding: 0.1rem 0.45rem; border-radius: 6px;
+  }
+  .series-name {
+    font-size: 0.76rem; color: var(--text-dim); margin-top: 0.15rem;
   }
   .missing-tag {
     display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 6px;
@@ -245,7 +248,7 @@ INDEX_TEMPLATE = """
     <div class="table-scroll">
       <table id="missing-table">
         <thead>
-          <tr><th>Title</th><th>Type</th><th>Missing</th><th>Status</th></tr>
+          <tr><th>Title</th><th>Type</th><th>Season</th><th>Missing</th><th>Status</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -437,6 +440,12 @@ INDEX_TEMPLATE = """
 
       const nameCell = document.createElement("td");
       nameCell.textContent = item.name || "";
+      if (item.series) {
+        const seriesLine = document.createElement("div");
+        seriesLine.className = "series-name";
+        seriesLine.textContent = item.series;
+        nameCell.appendChild(seriesLine);
+      }
       row.appendChild(nameCell);
 
       const typeCell = document.createElement("td");
@@ -445,6 +454,10 @@ INDEX_TEMPLATE = """
       typeTag.textContent = item.type;
       typeCell.appendChild(typeTag);
       row.appendChild(typeCell);
+
+      const seasonCell = document.createElement("td");
+      seasonCell.textContent = (item.season !== null && item.season !== undefined) ? "Season " + item.season : "—";
+      row.appendChild(seasonCell);
 
       const missingCell = document.createElement("td");
       for (const reason of item.missing) {

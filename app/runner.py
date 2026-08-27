@@ -19,6 +19,20 @@ class ScanSummary:
     skipped: int = 0
 
 
+def _build_missing_entry(item: dict, status: str) -> dict:
+    item_type = item.get("Type", "Unknown")
+    is_series_like = item_type in ("Episode", "Season")
+    return {
+        "id": item.get("Id"),
+        "name": item.get("Name", item.get("Id")),
+        "type": item_type,
+        "series": item.get("SeriesName") if is_series_like else None,
+        "season": item.get("ParentIndexNumber") if is_series_like else None,
+        "missing": describe_missing_reasons(item),
+        "status": status,
+    }
+
+
 def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> tuple[ScanSummary, list]:
     items = client.get_all_items()
     flagged_items = find_items_missing_metadata(items)
@@ -32,7 +46,6 @@ def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> tuple[
     missing_items = []
 
     for item in items_to_refresh:
-        reasons = describe_missing_reasons(item)
         try:
             client.refresh_item(item["Id"])
             refreshed += 1
@@ -40,22 +53,10 @@ def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> tuple[
         except JellyfinApiError as error:
             failures.append((item.get("Name", item.get("Id")), str(error)))
             status = "failed"
-        missing_items.append({
-            "id": item.get("Id"),
-            "name": item.get("Name", item.get("Id")),
-            "type": item.get("Type", "Unknown"),
-            "missing": reasons,
-            "status": status,
-        })
+        missing_items.append(_build_missing_entry(item, status))
 
     for item in pending_items:
-        missing_items.append({
-            "id": item.get("Id"),
-            "name": item.get("Name", item.get("Id")),
-            "type": item.get("Type", "Unknown"),
-            "missing": describe_missing_reasons(item),
-            "status": "pending",
-        })
+        missing_items.append(_build_missing_entry(item, "pending"))
 
     summary = ScanSummary(
         scanned=len(items),
