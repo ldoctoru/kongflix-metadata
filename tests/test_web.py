@@ -98,3 +98,29 @@ def test_post_scan_returns_409_when_already_scanning(tmp_path):
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "scan already in progress"}
+
+
+def test_retry_item_returns_updated_entry(tmp_path):
+    from app.history import save_missing_items
+
+    app, client, _, _, missing_items_path = make_test_app(tmp_path)
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+
+    response = app.test_client().post("/api/retry-item/1")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["id"] == "1"
+    assert body["status"] == "refreshed"
+    client.refresh_item.assert_called_once_with("1")
+
+
+def test_retry_item_returns_404_for_unknown_id(tmp_path):
+    app, _, _, _, _ = make_test_app(tmp_path)
+
+    response = app.test_client().post("/api/retry-item/does-not-exist")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "item not found"}

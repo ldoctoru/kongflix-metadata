@@ -3,7 +3,7 @@ import threading
 from flask import Flask, jsonify, render_template_string
 
 from app.history import load_history, load_missing_items
-from app.runner import run_scan_and_record
+from app.runner import retry_item, run_scan_and_record
 from app.state import AppState
 
 INDEX_TEMPLATE = """
@@ -593,5 +593,12 @@ def create_app(client, state: AppState, max_refreshes_per_run: int, history_path
         )
         thread.start()
         return jsonify({"started": True}), 202
+
+    @app.route("/api/retry-item/<item_id>", methods=["POST"])
+    def retry(item_id):
+        result = retry_item(client, missing_items_path, item_id)
+        if result is None:
+            return jsonify({"error": "item not found"}), 404
+        return jsonify(result)
 
     return app
