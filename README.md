@@ -59,6 +59,10 @@ per-run cap) — with a text box to filter by title. `once` mode does
 not start the dashboard, since the container exits immediately after a
 single scan.
 
+Each failed or pending item also has a "Retry" button to re-attempt
+just that one item's refresh without running a full scan — the result
+is saved immediately, so it persists across page reloads.
+
 The dashboard has no authentication — it's intended for use on a
 trusted home network, the same as most other Unraid app UIs.
 

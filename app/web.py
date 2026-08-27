@@ -180,6 +180,13 @@ INDEX_TEMPLATE = """
   .page-btn:hover:not(:disabled) { background: var(--accent-soft); }
   .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .page-info { color: var(--text-dim); font-size: 0.82rem; }
+  .retry-btn {
+    background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--accent);
+    padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.72rem; cursor: pointer;
+    margin-left: 0.5rem;
+  }
+  .retry-btn:hover { background: var(--accent-soft); }
+  .retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .missing-tag {
     display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 6px;
     background: rgba(139, 127, 214, 0.15); color: var(--accent); margin-right: 0.3rem;
@@ -512,10 +519,45 @@ INDEX_TEMPLATE = """
       statusBadge.className = "badge status-" + item.status;
       statusBadge.textContent = item.status;
       statusCell.appendChild(statusBadge);
+
+      if (item.status === "failed" || item.status === "pending") {
+        const retryBtn = document.createElement("button");
+        retryBtn.className = "retry-btn";
+        retryBtn.textContent = "Retry";
+        retryBtn.onclick = () => retryItem(item.id, retryBtn);
+        statusCell.appendChild(retryBtn);
+      }
+
       row.appendChild(statusCell);
 
       tbody.appendChild(row);
     }
+  }
+
+  async function retryItem(itemId, buttonEl) {
+    buttonEl.disabled = true;
+    buttonEl.textContent = "Retrying…";
+
+    const res = await fetch("/api/retry-item/" + encodeURIComponent(itemId), { method: "POST" });
+
+    if (res.status === 404) {
+      showToast("Item not found — try refreshing the page");
+      return;
+    }
+    if (!res.ok) {
+      showToast("Retry failed to start");
+      buttonEl.disabled = false;
+      buttonEl.textContent = "Retry";
+      return;
+    }
+
+    const updated = await res.json();
+    const index = allMissingItems.findIndex((entry) => entry.id === updated.id);
+    if (index !== -1) {
+      allMissingItems[index] = updated;
+    }
+    showToast(updated.status === "refreshed" ? "Refreshed successfully" : "Retry failed again");
+    renderMissingItems();
   }
 
   async function refreshMissingItems() {
