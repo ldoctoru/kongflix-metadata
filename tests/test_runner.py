@@ -86,6 +86,11 @@ def test_run_once_caps_refreshes_per_run():
     statuses = sorted(entry["status"] for entry in missing_items)
     assert statuses == ["pending", "pending", "refreshed"]
 
+    pending_entries = [entry for entry in missing_items if entry["status"] == "pending"]
+    assert len(pending_entries) == 2
+    for entry in pending_entries:
+        assert entry["missing"] == ["poster", "overview"]
+
 
 def test_run_once_missing_items_failed_count_matches_summary_failures():
     client = MagicMock()

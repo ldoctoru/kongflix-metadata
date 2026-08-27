@@ -38,7 +38,7 @@ def run_once(client: JellyfinClient, max_refreshes_per_run: int = 200) -> tuple[
             refreshed += 1
             status = "refreshed"
         except JellyfinApiError as error:
-            failures.append((item.get("Name", item["Id"]), str(error)))
+            failures.append((item.get("Name", item.get("Id")), str(error)))
             status = "failed"
         missing_items.append({
             "id": item.get("Id"),
