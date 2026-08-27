@@ -2,7 +2,7 @@ import threading
 
 from flask import Flask, jsonify, render_template_string
 
-from app.history import load_history
+from app.history import load_history, load_missing_items
 from app.runner import run_scan_and_record
 from app.state import AppState
 
@@ -149,6 +149,29 @@ INDEX_TEMPLATE = """
   .empty-state {
     padding: 2.5rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.9rem;
   }
+  .filter-input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.9rem;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--text);
+    font-size: 0.88rem;
+  }
+  .filter-input::placeholder { color: var(--text-dim); }
+  .filter-input:focus { outline: none; border-color: var(--accent); }
+  .type-tag {
+    font-size: 0.72rem; color: var(--text-dim); background: rgba(156, 153, 184, 0.12);
+    padding: 0.1rem 0.45rem; border-radius: 6px;
+  }
+  .missing-tag {
+    display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 6px;
+    background: rgba(139, 127, 214, 0.15); color: var(--accent); margin-right: 0.3rem;
+  }
+  .badge.status-refreshed { background: rgba(79, 214, 160, 0.15); color: var(--good); }
+  .badge.status-failed { background: rgba(232, 105, 125, 0.15); color: var(--bad); }
+  .badge.status-pending { background: rgba(156, 153, 184, 0.15); color: var(--text-dim); }
 
   .toast {
     position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(8px);
@@ -214,6 +237,20 @@ INDEX_TEMPLATE = """
       </table>
     </div>
     <div id="history-empty" class="empty-state" style="display:none;">No scans yet — click "Scan Now" to run the first one.</div>
+  </div>
+
+  <div class="section-title" style="margin-top: 1.5rem;">Missing metadata</div>
+  <input id="missing-filter" class="filter-input" type="text" placeholder="Filter by title...">
+  <div class="card history-card">
+    <div class="table-scroll">
+      <table id="missing-table">
+        <thead>
+          <tr><th>Title</th><th>Type</th><th>Missing</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="missing-empty" class="empty-state" style="display:none;">Nothing missing metadata right now.</div>
   </div>
 
 </div>
@@ -368,6 +405,67 @@ INDEX_TEMPLATE = """
     }
   }
 
+  let allMissingItems = [];
+
+  function renderMissingItems() {
+    const filterValue = document.getElementById("missing-filter").value.trim().toLowerCase();
+    const tbody = document.querySelector("#missing-table tbody");
+    const empty = document.getElementById("missing-empty");
+    const table = document.getElementById("missing-table");
+    tbody.innerHTML = "";
+
+    const filtered = filterValue
+      ? allMissingItems.filter((item) => item.name.toLowerCase().includes(filterValue))
+      : allMissingItems;
+
+    if (!filtered.length) {
+      table.style.display = "none";
+      empty.style.display = "block";
+      return;
+    }
+    table.style.display = "table";
+    empty.style.display = "none";
+
+    for (const item of filtered) {
+      const row = document.createElement("tr");
+
+      const nameCell = document.createElement("td");
+      nameCell.textContent = item.name;
+      row.appendChild(nameCell);
+
+      const typeCell = document.createElement("td");
+      const typeTag = document.createElement("span");
+      typeTag.className = "type-tag";
+      typeTag.textContent = item.type;
+      typeCell.appendChild(typeTag);
+      row.appendChild(typeCell);
+
+      const missingCell = document.createElement("td");
+      for (const reason of item.missing) {
+        const tag = document.createElement("span");
+        tag.className = "missing-tag";
+        tag.textContent = reason;
+        missingCell.appendChild(tag);
+      }
+      row.appendChild(missingCell);
+
+      const statusCell = document.createElement("td");
+      const statusBadge = document.createElement("span");
+      statusBadge.className = "badge status-" + item.status;
+      statusBadge.textContent = item.status;
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      tbody.appendChild(row);
+    }
+  }
+
+  async function refreshMissingItems() {
+    const res = await fetch("/api/missing-items");
+    allMissingItems = await res.json();
+    renderMissingItems();
+  }
+
   function showToast(message) {
     const toast = document.getElementById("toast");
     toast.textContent = message;
@@ -387,17 +485,21 @@ INDEX_TEMPLATE = """
     refreshStatus();
   }
 
+  document.getElementById("missing-filter").addEventListener("input", renderMissingItems);
+
   refreshStatus();
   refreshHistory();
+  refreshMissingItems();
   setInterval(refreshStatus, 3000);
   setInterval(refreshHistory, 5000);
+  setInterval(refreshMissingItems, 5000);
 </script>
 </body>
 </html>
 """
 
 
-def create_app(client, state: AppState, max_refreshes_per_run: int, history_path: str) -> Flask:
+def create_app(client, state: AppState, max_refreshes_per_run: int, history_path: str, missing_items_path: str) -> Flask:
     app = Flask(__name__)
 
     @app.route("/")
@@ -416,13 +518,17 @@ def create_app(client, state: AppState, max_refreshes_per_run: int, history_path
     def history():
         return jsonify(load_history(history_path))
 
+    @app.route("/api/missing-items")
+    def missing_items():
+        return jsonify(load_missing_items(missing_items_path))
+
     @app.route("/api/scan", methods=["POST"])
     def scan():
         if not state.try_start_scan():
             return jsonify({"error": "scan already in progress"}), 409
         thread = threading.Thread(
             target=run_scan_and_record,
-            args=(state, client, max_refreshes_per_run, history_path),
+            args=(state, client, max_refreshes_per_run, history_path, missing_items_path),
             daemon=True,
         )
         thread.start()

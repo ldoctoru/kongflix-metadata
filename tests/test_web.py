@@ -10,13 +10,14 @@ def make_test_app(tmp_path, state=None):
     client.get_all_items.return_value = []
     state = state or AppState()
     history_path = str(tmp_path / "history.json")
-    app = create_app(client, state, max_refreshes_per_run=200, history_path=history_path)
+    missing_items_path = str(tmp_path / "missing.json")
+    app = create_app(client, state, max_refreshes_per_run=200, history_path=history_path, missing_items_path=missing_items_path)
     app.config["TESTING"] = True
-    return app, client, state, history_path
+    return app, client, state, history_path, missing_items_path
 
 
 def test_index_returns_200(tmp_path):
-    app, _, _, _ = make_test_app(tmp_path)
+    app, _, _, _, _ = make_test_app(tmp_path)
     response = app.test_client().get("/")
     assert response.status_code == 200
 
@@ -25,7 +26,7 @@ def test_status_reflects_app_state(tmp_path):
     state = AppState()
     state.last_result = {"scanned": 3}
     state.last_run_at = "2026-01-01T00:00:00+00:00"
-    app, _, _, _ = make_test_app(tmp_path, state=state)
+    app, _, _, _, _ = make_test_app(tmp_path, state=state)
 
     response = app.test_client().get("/api/status")
 
@@ -39,7 +40,7 @@ def test_status_reflects_app_state(tmp_path):
 def test_history_endpoint_returns_persisted_entries(tmp_path):
     from app.history import append_history
 
-    app, _, _, history_path = make_test_app(tmp_path)
+    app, _, _, history_path, _ = make_test_app(tmp_path)
     append_history(history_path, {"scanned": 1})
     append_history(history_path, {"scanned": 2})
 
@@ -49,9 +50,34 @@ def test_history_endpoint_returns_persisted_entries(tmp_path):
     assert response.get_json() == [{"scanned": 1}, {"scanned": 2}]
 
 
+def test_missing_items_endpoint_returns_snapshot(tmp_path):
+    from app.history import save_missing_items
+
+    app, _, _, _, missing_items_path = make_test_app(tmp_path)
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "The Matrix", "type": "Movie", "missing": ["poster"], "status": "refreshed"},
+    ])
+
+    response = app.test_client().get("/api/missing-items")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {"id": "1", "name": "The Matrix", "type": "Movie", "missing": ["poster"], "status": "refreshed"},
+    ]
+
+
+def test_missing_items_endpoint_returns_empty_list_when_no_snapshot_yet(tmp_path):
+    app, _, _, _, _ = make_test_app(tmp_path)
+
+    response = app.test_client().get("/api/missing-items")
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
 @patch("app.web.threading.Thread")
 def test_post_scan_starts_scan_when_idle(mock_thread_cls, tmp_path):
-    app, client, state, _ = make_test_app(tmp_path)
+    app, client, state, _, _ = make_test_app(tmp_path)
     mock_thread = MagicMock()
     mock_thread_cls.return_value = mock_thread
 
@@ -66,7 +92,7 @@ def test_post_scan_starts_scan_when_idle(mock_thread_cls, tmp_path):
 def test_post_scan_returns_409_when_already_scanning(tmp_path):
     state = AppState()
     state.try_start_scan()
-    app, _, _, _ = make_test_app(tmp_path, state=state)
+    app, _, _, _, _ = make_test_app(tmp_path, state=state)
 
     response = app.test_client().post("/api/scan")
 
