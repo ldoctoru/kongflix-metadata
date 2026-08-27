@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from app.history import append_history
+from app.history import append_history, save_missing_items
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.scanner import describe_missing_reasons, find_items_missing_metadata
 
@@ -84,10 +84,11 @@ def log_summary(summary: ScanSummary) -> None:
         logger.info("scan skipped=%d items this round (per-run refresh cap reached)", summary.skipped)
 
 
-def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path: str) -> None:
+def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path: str, missing_items_path: str) -> None:
     try:
+        missing_items = None
         try:
-            summary = run_once(client, max_refreshes_per_run)
+            summary, missing_items = run_once(client, max_refreshes_per_run)
             log_summary(summary)
             result = dataclasses.asdict(summary)
         except JellyfinApiError as error:
@@ -99,17 +100,20 @@ def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path:
         state.last_result = result
         state.last_run_at = timestamp
         append_history(history_path, result)
+
+        if missing_items is not None:
+            save_missing_items(missing_items_path, missing_items)
     finally:
         state.scanning = False
         state._lock.release()
 
 
-def run_schedule(client: JellyfinClient, cron_schedule: str, max_refreshes_per_run: int, state, history_path: str) -> None:
+def run_schedule(client: JellyfinClient, cron_schedule: str, max_refreshes_per_run: int, state, history_path: str, missing_items_path: str) -> None:
     def scan_job():
         if not state.try_start_scan():
             logger.info("skipping scheduled scan: a scan is already in progress")
             return
-        run_scan_and_record(state, client, max_refreshes_per_run, history_path)
+        run_scan_and_record(state, client, max_refreshes_per_run, history_path, missing_items_path)
 
     scan_job()
 

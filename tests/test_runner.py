@@ -130,7 +130,7 @@ def test_run_schedule_skips_scan_when_one_already_in_progress(mock_scheduler_cls
     client = MagicMock()
 
     with patch("app.runner.run_once") as mock_run_once:
-        run_schedule(client, "0 3 * * *", 200, state, history_path)
+        run_schedule(client, "0 3 * * *", 200, state, history_path, str(tmp_path / "missing.json"))
 
     mock_run_once.assert_not_called()
     mock_scheduler_cls.return_value.start.assert_called_once()
@@ -144,7 +144,7 @@ def test_run_schedule_runs_scan_via_state_when_idle(mock_scheduler_cls, tmp_path
     client = MagicMock()
     client.get_all_items.return_value = []
 
-    run_schedule(client, "0 3 * * *", 200, state, history_path)
+    run_schedule(client, "0 3 * * *", 200, state, history_path, str(tmp_path / "missing.json"))
 
     assert state.last_result["scanned"] == 0
     assert state.last_result["flagged"] == 0
