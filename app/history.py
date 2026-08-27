@@ -18,3 +18,12 @@ def append_history(path: str, entry: dict, max_entries: int = 20) -> None:
     entries = entries[-max_entries:]
     with open(path, "w") as f:
         json.dump(entries, f)
+
+
+def save_missing_items(path: str, items: list) -> None:
+    with open(path, "w") as f:
+        json.dump(items, f)
+
+
+def load_missing_items(path: str) -> list:
+    return load_history(path)
