@@ -1,4 +1,4 @@
-from app.scanner import is_missing_metadata, find_items_missing_metadata
+from app.scanner import is_missing_metadata, find_items_missing_metadata, describe_missing_reasons
 
 
 def make_item(**overrides):
@@ -53,3 +53,23 @@ def test_find_items_missing_metadata_filters_list():
 
     result_ids = {item["Id"] for item in result}
     assert result_ids == {"missing-poster-1", "missing-overview-1"}
+
+
+def test_describe_missing_reasons_returns_empty_for_complete_item():
+    item = make_item()
+    assert describe_missing_reasons(item) == []
+
+
+def test_describe_missing_reasons_flags_poster_only():
+    item = make_item(ImageTags={})
+    assert describe_missing_reasons(item) == ["poster"]
+
+
+def test_describe_missing_reasons_flags_overview_only():
+    item = make_item(Overview="")
+    assert describe_missing_reasons(item) == ["overview"]
+
+
+def test_describe_missing_reasons_flags_both():
+    item = make_item(ImageTags={}, Overview="")
+    assert describe_missing_reasons(item) == ["poster", "overview"]
