@@ -309,11 +309,17 @@ INDEX_TEMPLATE = """
   }
 
   let scanning = false;
+  let lastRenderedRunAt = null;
 
   async function refreshStatus() {
     const res = await fetch("/api/status");
     const data = await res.json();
     scanning = !!data.scanning;
+
+    if (data.last_run_at !== lastRenderedRunAt) {
+      refreshMissingItems();
+      lastRenderedRunAt = data.last_run_at;
+    }
 
     const dot = document.getElementById("status-dot");
     const title = document.getElementById("status-title");
@@ -415,7 +421,7 @@ INDEX_TEMPLATE = """
     tbody.innerHTML = "";
 
     const filtered = filterValue
-      ? allMissingItems.filter((item) => item.name.toLowerCase().includes(filterValue))
+      ? allMissingItems.filter((item) => (item.name || "").toLowerCase().includes(filterValue))
       : allMissingItems;
 
     if (!filtered.length) {
@@ -430,7 +436,7 @@ INDEX_TEMPLATE = """
       const row = document.createElement("tr");
 
       const nameCell = document.createElement("td");
-      nameCell.textContent = item.name;
+      nameCell.textContent = item.name || "";
       row.appendChild(nameCell);
 
       const typeCell = document.createElement("td");
@@ -492,7 +498,6 @@ INDEX_TEMPLATE = """
   refreshMissingItems();
   setInterval(refreshStatus, 3000);
   setInterval(refreshHistory, 5000);
-  setInterval(refreshMissingItems, 5000);
 </script>
 </body>
 </html>

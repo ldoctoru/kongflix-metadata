@@ -56,3 +56,18 @@ def test_load_missing_items_returns_empty_list_on_invalid_json(tmp_path):
     path = tmp_path / "corrupt.json"
     path.write_text("not valid json{{{")
     assert load_missing_items(str(path)) == []
+
+
+def test_save_missing_items_leaves_original_file_intact_if_write_fails(tmp_path):
+    from unittest.mock import patch
+
+    path = str(tmp_path / "missing.json")
+    save_missing_items(path, [{"id": "original"}])
+
+    with patch("app.history.json.dump", side_effect=RuntimeError("disk full")):
+        try:
+            save_missing_items(path, [{"id": "should-not-land"}])
+        except RuntimeError:
+            pass
+
+    assert load_missing_items(path) == [{"id": "original"}]

@@ -1,4 +1,5 @@
 import json
+import os
 
 
 def load_history(path: str) -> list[dict]:
@@ -21,8 +22,10 @@ def append_history(path: str, entry: dict, max_entries: int = 20) -> None:
 
 
 def save_missing_items(path: str, items: list) -> None:
-    with open(path, "w") as f:
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w") as f:
         json.dump(items, f)
+    os.replace(tmp_path, path)
 
 
 def load_missing_items(path: str) -> list:
