@@ -168,6 +168,18 @@ INDEX_TEMPLATE = """
   .series-name {
     font-size: 0.76rem; color: var(--text-dim); margin-top: 0.15rem;
   }
+  .pagination {
+    display: flex; align-items: center; justify-content: center; gap: 1rem;
+    padding: 0.8rem 1rem; border-top: 1px solid var(--border);
+  }
+  .page-btn {
+    background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text);
+    padding: 0.4rem 0.9rem; border-radius: 8px; font-size: 0.82rem; cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .page-btn:hover:not(:disabled) { background: var(--accent-soft); }
+  .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-info { color: var(--text-dim); font-size: 0.82rem; }
   .missing-tag {
     display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 6px;
     background: rgba(139, 127, 214, 0.15); color: var(--accent); margin-right: 0.3rem;
@@ -254,6 +266,11 @@ INDEX_TEMPLATE = """
       </table>
     </div>
     <div id="missing-empty" class="empty-state" style="display:none;">Nothing missing metadata right now.</div>
+    <div id="missing-pagination" class="pagination" style="display:none;">
+      <button id="missing-prev" class="page-btn" onclick="changeMissingPage(-1)">&larr; Prev</button>
+      <span id="missing-page-info" class="page-info"></span>
+      <button id="missing-next" class="page-btn" onclick="changeMissingPage(1)">Next &rarr;</button>
+    </div>
   </div>
 
 </div>
@@ -415,12 +432,20 @@ INDEX_TEMPLATE = """
   }
 
   let allMissingItems = [];
+  const MISSING_PAGE_SIZE = 50;
+  let currentMissingPage = 1;
+
+  function changeMissingPage(delta) {
+    currentMissingPage += delta;
+    renderMissingItems();
+  }
 
   function renderMissingItems() {
     const filterValue = document.getElementById("missing-filter").value.trim().toLowerCase();
     const tbody = document.querySelector("#missing-table tbody");
     const empty = document.getElementById("missing-empty");
     const table = document.getElementById("missing-table");
+    const pagination = document.getElementById("missing-pagination");
     tbody.innerHTML = "";
 
     const filtered = filterValue
@@ -430,12 +455,26 @@ INDEX_TEMPLATE = """
     if (!filtered.length) {
       table.style.display = "none";
       empty.style.display = "block";
+      pagination.style.display = "none";
       return;
     }
     table.style.display = "table";
     empty.style.display = "none";
 
-    for (const item of filtered) {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / MISSING_PAGE_SIZE));
+    if (currentMissingPage > totalPages) currentMissingPage = totalPages;
+    if (currentMissingPage < 1) currentMissingPage = 1;
+
+    const startIndex = (currentMissingPage - 1) * MISSING_PAGE_SIZE;
+    const pageItems = filtered.slice(startIndex, startIndex + MISSING_PAGE_SIZE);
+
+    pagination.style.display = totalPages > 1 ? "flex" : "none";
+    document.getElementById("missing-page-info").textContent =
+      "Page " + currentMissingPage + " of " + totalPages + " (" + filtered.length + " items)";
+    document.getElementById("missing-prev").disabled = currentMissingPage <= 1;
+    document.getElementById("missing-next").disabled = currentMissingPage >= totalPages;
+
+    for (const item of pageItems) {
       const row = document.createElement("tr");
 
       const nameCell = document.createElement("td");
@@ -504,7 +543,10 @@ INDEX_TEMPLATE = """
     refreshStatus();
   }
 
-  document.getElementById("missing-filter").addEventListener("input", renderMissingItems);
+  document.getElementById("missing-filter").addEventListener("input", () => {
+    currentMissingPage = 1;
+    renderMissingItems();
+  });
 
   refreshStatus();
   refreshHistory();
