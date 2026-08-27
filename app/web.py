@@ -8,74 +8,385 @@ from app.state import AppState
 
 INDEX_TEMPLATE = """
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <title>Kongflix Metadata</title>
-  <style>
-    body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kongflix Metadata</title>
+<style>
+  :root {
+    --bg: #14141f;
+    --bg-elev: #1c1c2b;
+    --bg-elev-2: #232335;
+    --border: #2e2e44;
+    --text: #eceaf7;
+    --text-dim: #9c99b8;
+    --accent: #8b7fd6;
+    --accent-strong: #6f5fd0;
+    --accent-soft: rgba(139, 127, 214, 0.15);
+    --good: #4fd6a0;
+    --bad: #e8697d;
+    --radius: 12px;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.5rem 1.5rem 4rem;
+    background: radial-gradient(circle at 10% 0%, #1b1b30 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  header { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 2rem; }
+  header .logo { width: 44px; height: 44px; flex-shrink: 0; }
+  header h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 0.15rem 0 0; color: var(--text-dim); font-size: 0.88rem; }
+
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1.1rem 1.4rem;
+    margin-bottom: 1.5rem;
+  }
+  .status-left { display: flex; align-items: center; gap: 0.7rem; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--text-dim);
+    box-shadow: 0 0 0 0 rgba(0,0,0,0);
+  }
+  .dot.idle { background: var(--text-dim); }
+  .dot.ok { background: var(--good); }
+  .dot.scanning {
+    background: var(--accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .dot.error { background: var(--bad); }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 var(--accent-soft); }
+    70%  { box-shadow: 0 0 0 9px rgba(139, 127, 214, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(139, 127, 214, 0); }
+  }
+  .status-text .title { font-weight: 600; font-size: 0.98rem; }
+  .status-text .subtitle { color: var(--text-dim); font-size: 0.82rem; margin-top: 0.1rem; }
+
+  button.scan-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+    color: white; border: none; border-radius: 9px;
+    padding: 0.65rem 1.15rem; font-size: 0.92rem; font-weight: 600;
+    cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    box-shadow: 0 4px 14px rgba(111, 95, 208, 0.35);
+  }
+  button.scan-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(111, 95, 208, 0.45); }
+  button.scan-btn:active:not(:disabled) { transform: translateY(0); }
+  button.scan-btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: white;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .spinner.show { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat {
+    padding: 1rem 0.9rem;
+    text-align: left;
+  }
+  .stat .value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .label { color: var(--text-dim); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem; }
+  .stat.flagged .value { color: var(--accent); }
+  .stat.failed .value { color: var(--bad); }
+  .stat.refreshed .value { color: var(--good); }
+
+  .section-title {
+    font-size: 0.95rem; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.8rem 0.1rem;
+  }
+
+  .history-card { padding: 0.3rem; overflow: hidden; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; min-width: 480px; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-dim); font-weight: 600;
+    padding: 0.7rem 1rem; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 0.7rem 1rem; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-elev-2); }
+  td.error-cell { color: var(--bad); font-weight: 500; }
+  .badge {
+    display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600;
+  }
+  .badge.zero { background: rgba(156, 153, 184, 0.15); color: var(--text-dim); }
+  .badge.nonzero-bad { background: rgba(232, 105, 125, 0.15); color: var(--bad); }
+  .badge.nonzero-good { background: rgba(79, 214, 160, 0.15); color: var(--good); }
+
+  .empty-state {
+    padding: 2.5rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.9rem;
+  }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text);
+    padding: 0.7rem 1.1rem; border-radius: 9px; font-size: 0.85rem;
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 620px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .status-bar { flex-direction: column; align-items: stretch; }
+  }
+</style>
 </head>
 <body>
-  <h1>Kongflix Metadata</h1>
-  <p id="status">Loading status...</p>
-  <button id="scan-btn" onclick="triggerScan()">Scan Now</button>
-  <h2>Recent scans</h2>
-  <table id="history-table">
-    <thead><tr><th>Scanned</th><th>Flagged</th><th>Refreshed</th><th>Skipped</th><th>Failed</th></tr></thead>
-    <tbody></tbody>
-  </table>
+<div class="wrap">
 
-  <script>
-    async function refreshStatus() {
-      const res = await fetch("/api/status");
-      const data = await res.json();
-      const statusEl = document.getElementById("status");
-      if (data.scanning) {
-        statusEl.textContent = "Scan in progress...";
+  <header>
+    <svg class="logo" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bell" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8b7fd6"/>
+          <stop offset="100%" stop-color="#5f4fbf"/>
+        </linearGradient>
+      </defs>
+      <path d="M32 56 C32 32 48 20 64 20 C80 20 96 32 96 56 C96 62 90 64 64 64 C38 64 32 62 32 56 Z" fill="url(#bell)"/>
+      <path d="M42 62 C40 78 46 84 44 100" stroke="#8b7fd6" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M64 65 C64 84 64 90 64 106" stroke="#a89ae0" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M86 62 C88 78 82 84 84 100" stroke="#8b7fd6" stroke-width="5" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div>
+      <h1>Kongflix Metadata</h1>
+      <p>Jellyfin poster &amp; overview scanner</p>
+    </div>
+  </header>
+
+  <div class="card status-bar">
+    <div class="status-left">
+      <span id="status-dot" class="dot idle"></span>
+      <div class="status-text">
+        <div id="status-title" class="title">Loading&hellip;</div>
+        <div id="status-subtitle" class="subtitle">&nbsp;</div>
+      </div>
+    </div>
+    <button id="scan-btn" class="scan-btn" onclick="triggerScan()">
+      <span id="scan-spinner" class="spinner"></span>
+      <span id="scan-btn-label">Scan Now</span>
+    </button>
+  </div>
+
+  <div id="stats" class="stats"></div>
+
+  <div class="section-title">Recent scans</div>
+  <div class="card history-card">
+    <div class="table-scroll">
+      <table id="history-table">
+        <thead>
+          <tr><th>Scanned</th><th>Flagged</th><th>Refreshed</th><th>Skipped</th><th>Failed</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="history-empty" class="empty-state" style="display:none;">No scans yet — click "Scan Now" to run the first one.</div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  function fmtTime(iso) {
+    if (!iso) return "never";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  function badge(value, kind) {
+    const span = document.createElement("span");
+    const cls = value === 0 ? "zero" : (kind === "bad" ? "nonzero-bad" : "nonzero-good");
+    span.className = "badge " + cls;
+    span.textContent = value;
+    return span;
+  }
+
+  function renderStats(result) {
+    const el = document.getElementById("stats");
+    el.innerHTML = "";
+    const fields = result && !result.error ? [
+      ["scanned", "Scanned", ""],
+      ["flagged", "Flagged", "flagged"],
+      ["refreshed", "Refreshed", "refreshed"],
+      ["skipped", "Skipped", ""],
+      ["failedCount", "Failed", "failed"],
+    ] : [
+      ["scanned", "Scanned", ""], ["flagged", "Flagged", "flagged"],
+      ["refreshed", "Refreshed", "refreshed"], ["skipped", "Skipped", ""],
+      ["failedCount", "Failed", "failed"],
+    ];
+    for (const [key, label, cls] of fields) {
+      const value = result && !result.error
+        ? (key === "failedCount" ? (result.failures ? result.failures.length : 0) : (result[key] ?? 0))
+        : 0;
+      const card = document.createElement("div");
+      card.className = "card stat" + (cls ? " " + cls : "");
+      const valueEl = document.createElement("div");
+      valueEl.className = "value";
+      valueEl.textContent = value;
+      const labelEl = document.createElement("div");
+      labelEl.className = "label";
+      labelEl.textContent = label;
+      card.appendChild(valueEl);
+      card.appendChild(labelEl);
+      el.appendChild(card);
+    }
+  }
+
+  let scanning = false;
+
+  async function refreshStatus() {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    scanning = !!data.scanning;
+
+    const dot = document.getElementById("status-dot");
+    const title = document.getElementById("status-title");
+    const subtitle = document.getElementById("status-subtitle");
+    const btn = document.getElementById("scan-btn");
+    const spinner = document.getElementById("scan-spinner");
+    const label = document.getElementById("scan-btn-label");
+
+    if (data.scanning) {
+      dot.className = "dot scanning";
+      title.textContent = "Scan in progress";
+      subtitle.textContent = "This can take a while on large libraries";
+      btn.disabled = true;
+      spinner.classList.add("show");
+      label.textContent = "Scanning…";
+    } else {
+      spinner.classList.remove("show");
+      btn.disabled = false;
+      label.textContent = "Scan Now";
+      if (data.last_result && data.last_result.error) {
+        dot.className = "dot error";
+        title.textContent = "Last scan failed";
+        subtitle.textContent = data.last_result.error;
       } else if (data.last_result) {
-        statusEl.textContent = "Last run: " + (data.last_run_at || "unknown");
+        dot.className = "dot ok";
+        title.textContent = "Idle";
+        subtitle.textContent = "Last run: " + fmtTime(data.last_run_at);
       } else {
-        statusEl.textContent = "No scans yet.";
+        dot.className = "dot idle";
+        title.textContent = "Idle";
+        subtitle.textContent = "No scans yet";
       }
     }
 
-    async function refreshHistory() {
-      const res = await fetch("/api/history");
-      const data = await res.json();
-      const tbody = document.querySelector("#history-table tbody");
-      tbody.innerHTML = "";
-      for (const entry of data.slice().reverse()) {
-        const row = document.createElement("tr");
-        if (entry.error) {
-          const cell = document.createElement("td");
-          cell.colSpan = 5;
-          cell.textContent = "Error: " + entry.error;
-          row.appendChild(cell);
-        } else {
-          const values = [entry.scanned, entry.flagged, entry.refreshed, entry.skipped, entry.failures.length];
-          for (const value of values) {
-            const cell = document.createElement("td");
-            cell.textContent = value;
-            row.appendChild(cell);
-          }
-        }
-        tbody.appendChild(row);
+    renderStats(data.last_result);
+  }
+
+  async function refreshHistory() {
+    const res = await fetch("/api/history");
+    const data = await res.json();
+    const tbody = document.querySelector("#history-table tbody");
+    const empty = document.getElementById("history-empty");
+    const table = document.getElementById("history-table");
+    tbody.innerHTML = "";
+
+    if (!data.length) {
+      table.style.display = "none";
+      empty.style.display = "block";
+      return;
+    }
+    table.style.display = "table";
+    empty.style.display = "none";
+
+    for (const entry of data.slice().reverse()) {
+      const row = document.createElement("tr");
+      if (entry.error) {
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        cell.className = "error-cell";
+        cell.textContent = "Error: " + entry.error;
+        row.appendChild(cell);
+      } else {
+        const scanned = document.createElement("td");
+        scanned.textContent = entry.scanned;
+        row.appendChild(scanned);
+
+        const flagged = document.createElement("td");
+        flagged.textContent = entry.flagged;
+        row.appendChild(flagged);
+
+        const refreshed = document.createElement("td");
+        refreshed.textContent = entry.refreshed;
+        row.appendChild(refreshed);
+
+        const skipped = document.createElement("td");
+        skipped.textContent = entry.skipped;
+        row.appendChild(skipped);
+
+        const failedCell = document.createElement("td");
+        failedCell.appendChild(badge(entry.failures.length, "bad"));
+        row.appendChild(failedCell);
       }
+      tbody.appendChild(row);
     }
+  }
 
-    async function triggerScan() {
-      await fetch("/api/scan", { method: "POST" });
-      refreshStatus();
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 2600);
+  }
+
+  async function triggerScan() {
+    const res = await fetch("/api/scan", { method: "POST" });
+    if (res.status === 409) {
+      showToast("A scan is already in progress");
+    } else if (res.ok) {
+      showToast("Scan started");
+    } else {
+      showToast("Could not start scan");
     }
-
     refreshStatus();
-    refreshHistory();
-    setInterval(refreshStatus, 5000);
-    setInterval(refreshHistory, 5000);
-  </script>
+  }
+
+  refreshStatus();
+  refreshHistory();
+  setInterval(refreshStatus, 3000);
+  setInterval(refreshHistory, 5000);
+</script>
 </body>
 </html>
 """
