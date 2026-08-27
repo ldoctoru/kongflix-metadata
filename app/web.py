@@ -208,7 +208,7 @@ INDEX_TEMPLATE = """
     <div class="table-scroll">
       <table id="history-table">
         <thead>
-          <tr><th>Scanned</th><th>Flagged</th><th>Refreshed</th><th>Skipped</th><th>Failed</th></tr>
+          <tr><th>When</th><th>Scanned</th><th>Flagged</th><th>Refreshed</th><th>Skipped</th><th>Failed</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -332,6 +332,11 @@ INDEX_TEMPLATE = """
 
     for (const entry of data.slice().reverse()) {
       const row = document.createElement("tr");
+      const when = document.createElement("td");
+      when.textContent = fmtTime(entry.timestamp);
+      when.style.whiteSpace = "nowrap";
+      row.appendChild(when);
+
       if (entry.error) {
         const cell = document.createElement("td");
         cell.colSpan = 5;

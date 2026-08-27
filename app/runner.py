@@ -71,8 +71,11 @@ def run_scan_and_record(state, client, max_refreshes_per_run: int, history_path:
         except JellyfinApiError as error:
             result = {"error": str(error)}
 
+        timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        result["timestamp"] = timestamp
+
         state.last_result = result
-        state.last_run_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        state.last_run_at = timestamp
         append_history(history_path, result)
     finally:
         state.scanning = False

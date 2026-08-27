@@ -114,13 +114,12 @@ def test_run_schedule_runs_scan_via_state_when_idle(mock_scheduler_cls, tmp_path
 
     run_schedule(client, "0 3 * * *", 200, state, history_path)
 
-    assert state.last_result == {
-        "scanned": 0,
-        "flagged": 0,
-        "refreshed": 0,
-        "failures": [],
-        "skipped": 0,
-    }
+    assert state.last_result["scanned"] == 0
+    assert state.last_result["flagged"] == 0
+    assert state.last_result["refreshed"] == 0
+    assert state.last_result["failures"] == []
+    assert state.last_result["skipped"] == 0
+    assert state.last_result["timestamp"] == state.last_run_at
     assert state.scanning is False
 
     from app.history import load_history
