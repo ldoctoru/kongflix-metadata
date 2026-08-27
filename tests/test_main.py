@@ -11,7 +11,7 @@ from app.state import AppState
 @patch("app.main.JellyfinClient")
 def test_main_once_mode_runs_single_scan_and_returns_zero(mock_client_cls, mock_log_summary, mock_run_once):
     mock_client_cls.return_value = MagicMock()
-    mock_run_once.return_value = MagicMock()
+    mock_run_once.return_value = (MagicMock(), [])
 
     env = {
         "JELLYFIN_URL": "http://jellyfin.local:8096",
@@ -60,6 +60,8 @@ def test_main_schedule_mode_calls_run_schedule(mock_client_cls, mock_run_schedul
     assert call_args.args[2] == 200
     assert isinstance(call_args.args[3], AppState)
     assert isinstance(call_args.args[4], str)
+    assert isinstance(call_args.args[5], str)
+    assert call_args.args[4] != call_args.args[5]
 
 
 @patch("app.main.waitress")
@@ -118,7 +120,7 @@ def test_main_schedule_mode_starts_web_server_thread(mock_client_cls, mock_run_s
 @patch("app.main.JellyfinClient")
 def test_main_once_mode_does_not_start_web_server(mock_client_cls, mock_waitress, mock_log_summary, mock_run_once):
     mock_client_cls.return_value = MagicMock()
-    mock_run_once.return_value = MagicMock()
+    mock_run_once.return_value = (MagicMock(), [])
 
     env = {
         "JELLYFIN_URL": "http://jellyfin.local:8096",

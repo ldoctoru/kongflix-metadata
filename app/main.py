@@ -67,7 +67,7 @@ def main(env: dict = None) -> int:
 
     if config.run_mode == "once":
         try:
-            summary = run_once(client, config.max_refreshes_per_run)
+            summary, _missing_items = run_once(client, config.max_refreshes_per_run)
         except JellyfinApiError as error:
             logger.error("could not reach Jellyfin: %s", error)
             return 1
@@ -81,7 +81,8 @@ def main(env: dict = None) -> int:
 
         state = AppState()
         history_path = os.path.join(os.path.dirname(config.log_path) or ".", "scan_history.json")
-        app = create_app(client, state, config.max_refreshes_per_run, history_path)
+        missing_items_path = os.path.join(os.path.dirname(config.log_path) or ".", "missing_items.json")
+        app = create_app(client, state, config.max_refreshes_per_run, history_path, missing_items_path)
         server_thread = threading.Thread(
             target=lambda: waitress.serve(app, host="0.0.0.0", port=config.web_port),
             daemon=True,
@@ -89,7 +90,7 @@ def main(env: dict = None) -> int:
         server_thread.start()
 
         if config.run_mode == "schedule":
-            run_schedule(client, config.cron_schedule, config.max_refreshes_per_run, state, history_path)
+            run_schedule(client, config.cron_schedule, config.max_refreshes_per_run, state, history_path, missing_items_path)
         else:
             run_watch(client)
 
