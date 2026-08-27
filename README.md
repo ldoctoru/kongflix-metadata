@@ -52,8 +52,12 @@ text**. Genres, external provider IDs, and other fields are not checked.
 In `schedule` and `watch` modes, a small web dashboard is served on
 `WEB_PORT` (default `5689`) — e.g. `http://<host>:5689/`. It shows the
 result of the last 20 scans and has a "Scan Now" button to trigger a
-manual scan on demand. `once` mode does not start the dashboard, since
-the container exits immediately after a single scan.
+manual scan on demand. It also lists every item flagged in the most
+recent scan — title, type, what's missing (poster/overview), and
+whether it was refreshed, failed, or is still pending (beyond the
+per-run cap) — with a text box to filter by title. `once` mode does
+not start the dashboard, since the container exits immediately after a
+single scan.
 
 The dashboard has no authentication — it's intended for use on a
 trusted home network, the same as most other Unraid app UIs.
