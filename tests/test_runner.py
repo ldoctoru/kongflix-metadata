@@ -1,9 +1,10 @@
 import logging
 from unittest.mock import MagicMock, patch
 
+from app.history import load_missing_items, save_missing_items
 from app.jellyfin_client import JellyfinApiError
 from app.runner import run_once, run_schedule, ScanSummary
-from app.runner import log_summary, run_watch
+from app.runner import log_summary, run_watch, retry_item
 from app.state import AppState
 
 
@@ -224,3 +225,57 @@ def test_run_watch_isolates_refresh_failures(caplog):
     assert client.refresh_item.call_count == 2
     assert "bad-item" in caplog.text
     assert "boom" in caplog.text
+
+
+def test_retry_item_marks_success_and_persists(tmp_path):
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+        {"id": "2", "name": "Other Item", "type": "Movie", "series": None, "season": None, "missing": ["overview"], "status": "pending"},
+    ])
+    client = MagicMock()
+
+    result = retry_item(client, missing_items_path, "1")
+
+    assert result["id"] == "1"
+    assert result["status"] == "refreshed"
+    client.refresh_item.assert_called_once_with("1")
+
+    snapshot = load_missing_items(missing_items_path)
+    by_id = {entry["id"]: entry for entry in snapshot}
+    assert by_id["1"]["status"] == "refreshed"
+    assert by_id["2"]["status"] == "pending"
+
+
+def test_retry_item_marks_failure_and_persists(tmp_path):
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "pending"},
+    ])
+    client = MagicMock()
+    client.refresh_item.side_effect = JellyfinApiError("still broken")
+
+    result = retry_item(client, missing_items_path, "1")
+
+    assert result["status"] == "failed"
+    assert result["error"] == "still broken"
+
+    snapshot = load_missing_items(missing_items_path)
+    assert snapshot[0]["status"] == "failed"
+    assert snapshot[0]["error"] == "still broken"
+
+
+def test_retry_item_returns_none_for_unknown_id(tmp_path):
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Bad Item", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+    client = MagicMock()
+
+    result = retry_item(client, missing_items_path, "does-not-exist")
+
+    assert result is None
+    client.refresh_item.assert_not_called()
+
+    snapshot = load_missing_items(missing_items_path)
+    assert snapshot[0]["status"] == "failed"

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from app.history import append_history, save_missing_items
+from app.history import append_history, load_missing_items, save_missing_items
 from app.jellyfin_client import JellyfinApiError, JellyfinClient
 from app.scanner import describe_missing_reasons, find_items_missing_metadata
 
@@ -141,3 +141,27 @@ def run_watch(client: JellyfinClient) -> None:
             logger.error("failed to refresh newly added item %s: %s", item_id, error)
 
     client.listen_for_library_changes(on_item_added)
+
+
+def retry_item(client: JellyfinClient, missing_items_path: str, item_id: str) -> dict | None:
+    items = load_missing_items(missing_items_path)
+
+    target = None
+    for entry in items:
+        if entry.get("id") == item_id:
+            target = entry
+            break
+
+    if target is None:
+        return None
+
+    try:
+        client.refresh_item(item_id)
+        target["status"] = "refreshed"
+        target.pop("error", None)
+    except JellyfinApiError as error:
+        target["status"] = "failed"
+        target["error"] = str(error)
+
+    save_missing_items(missing_items_path, items)
+    return target
