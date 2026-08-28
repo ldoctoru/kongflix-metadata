@@ -1,0 +1,83 @@
+name: Build and release plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "4-part assembly version, e.g. 1.0.1.0"
+        required: true
+      target_abi:
+        description: "Minimum Jellyfin server version this build supports"
+        required: true
+        default: "10.9.0.0"
+      changelog:
+        description: "Short description of what changed"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        working-directory: plugin
+        run: dotnet restore
+
+      - name: Build (Release)
+        working-directory: plugin
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        working-directory: plugin
+        run: dotnet test Kongflix.PosterScanner.Tests/Kongflix.PosterScanner.Tests.csproj --configuration Release --no-restore
+
+      - name: Zip plugin output
+        id: zip
+        working-directory: plugin
+        run: |
+          zip_name="kongflix-poster-scanner_${{ inputs.version }}.zip"
+          (cd Kongflix.PosterScanner/bin/Release/net8.0 && zip -r "../../../../${zip_name}" Kongflix.PosterScanner.dll)
+          echo "zip_name=${zip_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute checksum
+        id: checksum
+        run: echo "md5=$(md5sum '${{ steps.zip.outputs.zip_name }}' | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: plugin-v${{ inputs.version }}
+          name: Kongflix Poster Scanner v${{ inputs.version }}
+          body: ${{ inputs.changelog }}
+          files: ${{ steps.zip.outputs.zip_name }}
+
+      - name: Update manifest.json
+        run: |
+          python3 scripts/update_plugin_manifest.py \
+            --manifest-path manifest.json \
+            --guid 8b5a1c2d-4f6e-4a3b-9d1c-2e3f4a5b6c7d \
+            --version "${{ inputs.version }}" \
+            --target-abi "${{ inputs.target_abi }}" \
+            --changelog "${{ inputs.changelog }}" \
+            --source-url "https://github.com/${{ github.repository }}/releases/download/plugin-v${{ inputs.version }}/${{ steps.zip.outputs.zip_name }}" \
+            --checksum "${{ steps.checksum.outputs.md5 }}"
+
+      - name: Commit manifest.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "chore: publish plugin v${{ inputs.version }} to repository manifest"
+          git push origin HEAD:main

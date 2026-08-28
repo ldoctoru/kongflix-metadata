@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "8b5a1c2d-4f6e-4a3b-9d1c-2e3f4a5b6c7d",
+    "name": "Kongflix Poster Scanner",
+    "description": "Scans movie and series libraries for items missing a poster and forces Jellyfin's own agents to refresh them.",
+    "overview": "Scan and refresh items missing a poster",
+    "owner": "ldoctoru",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/plugin/icon.svg",
+    "versions": []
+  }
+]
