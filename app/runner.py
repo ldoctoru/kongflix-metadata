@@ -187,3 +187,8 @@ def retry_item(client: JellyfinClient, missing_items_path: str, item_id: str) ->
 
         save_missing_items(missing_items_path, items)
         return target
+
+
+def clear_missing_items(missing_items_path: str) -> None:
+    with _missing_items_lock:
+        save_missing_items(missing_items_path, [])

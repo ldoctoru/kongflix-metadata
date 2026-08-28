@@ -338,3 +338,17 @@ def test_retry_item_when_item_removed_by_concurrent_scan(tmp_path):
     assert "1" not in by_id
     assert "2" in by_id
     assert by_id["2"]["name"] == "Different Item"
+
+
+def test_clear_missing_items_empties_the_snapshot(tmp_path):
+    from app.history import load_missing_items, save_missing_items
+    from app.runner import clear_missing_items
+
+    missing_items_path = str(tmp_path / "missing.json")
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Some Movie", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+
+    clear_missing_items(missing_items_path)
+
+    assert load_missing_items(missing_items_path) == []
