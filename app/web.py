@@ -2,8 +2,8 @@ import threading
 
 from flask import Flask, jsonify, render_template_string
 
-from app.history import load_history, load_missing_items, save_missing_items
-from app.runner import _missing_items_lock, retry_item, run_scan_and_record
+from app.history import load_history, load_missing_items
+from app.runner import clear_missing_items, retry_item, run_scan_and_record
 from app.state import AppState
 
 INDEX_TEMPLATE = """
@@ -579,7 +579,7 @@ INDEX_TEMPLATE = """
   }
 
   async function clearMissingList() {
-    if (!confirm('Clear the missing-metadata list? This does not affect Jellyfin — it just resets what\'s shown here until the next scan.')) {
+    if (!confirm("Clear the missing-metadata list? This does not affect Jellyfin — it just resets what's shown here until the next scan.")) {
       return;
     }
 
@@ -680,9 +680,8 @@ def create_app(client, state: AppState, max_refreshes_per_run: int, history_path
         return jsonify(result)
 
     @app.route("/api/clear-missing-items", methods=["POST"])
-    def clear_missing_items():
-        with _missing_items_lock:
-            save_missing_items(missing_items_path, [])
+    def clear_missing_items_route():
+        clear_missing_items(missing_items_path)
         return jsonify({"cleared": True})
 
     return app

@@ -160,3 +160,19 @@ def test_clear_missing_items_is_idempotent_on_empty_list(tmp_path):
 
     from app.history import load_missing_items
     assert load_missing_items(missing_items_path) == []
+
+
+def test_index_template_has_no_broken_js_string_escapes(tmp_path):
+    app, _, _, _, _ = make_test_app(tmp_path)
+    response = app.test_client().get("/")
+    html = response.get_data(as_text=True)
+    # A Python \' escape inside the JS-containing template string collapses to a
+    # bare apostrophe once rendered, leaving a single-quoted JS string literal
+    # that an apostrophe in "what's shown" would terminate early -- a syntax
+    # error that breaks the entire inline <script>. Note that the plain text
+    # "what's shown" appears in the rendered HTML either way (it's part of the
+    # dialog copy); what distinguishes broken from fixed is which quote
+    # character wraps the confirm() string, so we check that directly rather
+    # than the substring alone.
+    assert "confirm('Clear the missing-metadata list?" not in html
+    assert 'confirm("Clear the missing-metadata list?' in html
