@@ -36,15 +36,22 @@ the "Build and release plugin" GitHub Actions workflow (see
 
 1. In Jellyfin, go to **Dashboard → Plugins → Repositories → Add
    Repository**.
-2. Set **Repository Name** to anything (e.g. "Kongflix") and
-   **Repository URL** to:
-   ```
-   https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/manifest.json
-   ```
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Repository Name | `Kongflix` (or anything you like) |
+   | Repository URL | `https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/manifest.json` |
+
 3. Go to **Dashboard → Plugins → Catalog**, find "Kongflix Metadata
    Scanner," and install it.
 4. Restart Jellyfin when prompted.
 5. Continue from step 4 below.
+
+> **Note:** the catalog only shows a version once one has actually
+> been published — see [Releasing a new version](#releasing-a-new-version)
+> below. Adding the repository before any version exists is harmless;
+> the plugin just won't appear in the Catalog list yet.
 
 ## Installing (manual, local build)
 
