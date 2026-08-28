@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <title>Kongflix Metadata Scanner</title>
+</head>
+<body>
+  <div id="KongflixMetadataScannerConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div data-role="content">
+      <div class="content-primary">
+        <form id="KongflixMetadataScannerConfigForm">
+          <div class="inputContainer">
+            <label class="inputLabel" for="ExcludeItemTypes">Exclude Item Types (comma-separated)</label>
+            <input id="ExcludeItemTypes" name="ExcludeItemTypes" type="text" is="emby-input" />
+            <div class="fieldDescription">e.g. Season,BoxSet,CollectionFolder,Audio,MusicAlbum,MusicArtist</div>
+          </div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="MaxRefreshesPerRun">Max Refreshes Per Run</label>
+            <input id="MaxRefreshesPerRun" name="MaxRefreshesPerRun" type="number" is="emby-input" min="1" />
+          </div>
+          <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+            <span>Save</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript">
+    (function () {
+      var PluginConfig = {
+        pluginUniqueId: "5f3b2c1a-8e4d-4a6b-9c2f-1a2b3c4d5e6f"
+      };
+
+      document.querySelector('#KongflixMetadataScannerConfigPage')
+        .addEventListener('pageshow', function () {
+          Dashboard.showLoadingMsg();
+          ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+            document.querySelector('#ExcludeItemTypes').value = config.ExcludeItemTypes;
+            document.querySelector('#MaxRefreshesPerRun').value = config.MaxRefreshesPerRun;
+            Dashboard.hideLoadingMsg();
+          });
+        });
+
+      document.querySelector('#KongflixMetadataScannerConfigForm')
+        .addEventListener('submit', function (e) {
+          Dashboard.showLoadingMsg();
+          ApiClient.getPluginConfiguration(PluginConfig.pluginUniqueId).then(function (config) {
+            config.ExcludeItemTypes = document.querySelector('#ExcludeItemTypes').value;
+            config.MaxRefreshesPerRun = parseInt(document.querySelector('#MaxRefreshesPerRun').value, 10);
+            ApiClient.updatePluginConfiguration(PluginConfig.pluginUniqueId, config).then(function (result) {
+              Dashboard.processPluginConfigurationUpdateResult(result);
+            });
+          });
+          e.preventDefault();
+          return false;
+        });
+    })();
+  </script>
+</body>
+</html>
