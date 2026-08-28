@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/plugin/icon.svg",
     "versions": [
       {
+        "version": "1.0.1.0",
+        "changelog": "Fix MissingMethodException on Jellyfin 10.11.x: retarget to Jellyfin.Controller 10.11.11 / .NET 9 (ILibraryManager.GetItemList's return type changed, and TaskTriggerInfo.TriggerDaily was replaced by TaskTriggerInfoType.DailyTrigger). Requires a Jellyfin 10.11.x+ server.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/ldoctoru/kongflix-metadata/releases/download/plugin-v1.0.1.0/kongflix-poster-scanner_1.0.1.0.zip",
+        "checksum": "1096dfccc26ec2cc0cdc0ba9b822a88f",
+        "timestamp": "2026-08-28T13:36:51Z"
+      },
+      {
         "version": "1.0.0.0",
         "changelog": "Initial release: scans movie and series libraries for items missing a poster and forces a full metadata/image refresh via Jellyfin's own agents.",
         "targetAbi": "10.9.0.0",
