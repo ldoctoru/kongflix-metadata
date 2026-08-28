@@ -44,7 +44,7 @@ Dashboard → Plugins → Kongflix Poster Scanner exposes:
 
 ## Building
 
-Requires the .NET 8 SDK.
+Requires the .NET 9 SDK (matching Jellyfin's own runtime as of 10.11.x).
 
 ```bash
 cd plugin
@@ -84,7 +84,7 @@ release plugin" GitHub Actions workflow (see
 
 1. Build the project in Release mode (see [Building](#building) above).
 2. Copy the built output
-   (`Kongflix.PosterScanner/bin/Release/net8.0/Kongflix.PosterScanner.dll`
+   (`Kongflix.PosterScanner/bin/Release/net9.0/Kongflix.PosterScanner.dll`
    and any dependent DLLs not already present in Jellyfin's own `System`
    folder) into a new folder under Jellyfin's plugin directory, e.g.
    `<jellyfin-data>/plugins/Kongflix Poster Scanner/`.
@@ -106,7 +106,7 @@ Run workflow**, and fill in:
 - **version** — e.g. `1.0.0.0` (must be a valid 4-part .NET assembly
   version)
 - **target_abi** — the minimum Jellyfin server version this build
-  supports (default `10.9.0.0`)
+  supports (default `10.11.0.0`)
 - **changelog** — a short description of what changed
 
 Once it finishes, anyone with this repository already added in
@@ -116,5 +116,17 @@ Jellyfin will see the new version available under Dashboard → Plugins
 ## Status
 
 Builds and all unit tests pass against the real Jellyfin Plugin SDK
-(`Jellyfin.Controller` 10.9.11, target ABI 10.9.0.0). Not yet verified:
-loading and running inside an actual live Jellyfin server.
+(`Jellyfin.Controller` 10.11.11, target ABI 10.11.0.0), and has been
+confirmed running against a live Jellyfin 10.11.11 server.
+
+### Version compatibility
+
+Jellyfin's plugin API isn't binary-stable across releases: several
+`ILibraryManager`/`TaskTriggerInfo` signatures changed between 10.10.x
+and 10.11.x (which also moved Jellyfin's own runtime from .NET 8 to
+.NET 9), causing a `MissingMethodException` at scan time when a build
+compiled against an older SDK version is loaded into a newer server.
+v1.0.0.0 was built against 10.9.11 and only works on servers up to
+~10.10.x; v1.0.1.0 onward targets 10.11.11/.NET 9 and requires a
+10.11.x+ server. If you're on an older Jellyfin server, use v1.0.0.0
+instead, or open an issue.
