@@ -53,7 +53,7 @@ public class MetadataScanTask : IScheduledTask
         };
     }
 
-    public async Task Execute(IProgress<double> progress, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
         var excludeTypes = (_config.ExcludeItemTypes ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

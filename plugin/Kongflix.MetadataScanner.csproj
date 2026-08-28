@@ -18,4 +18,8 @@
     <EmbeddedResource Include="Configuration\configPage.html" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Kongflix.MetadataScanner.Tests\**\*.cs" />
+  </ItemGroup>
+
 </Project>

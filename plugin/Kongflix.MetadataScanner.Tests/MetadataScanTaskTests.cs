@@ -52,7 +52,7 @@ public class MetadataScanTaskTests
 
         var task = new MetadataScanTask(libraryManager.Object, providerManager.Object, directoryService.Object, logger.Object, config);
 
-        await task.Execute(new Progress<double>(), CancellationToken.None);
+        await task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         providerManager.Verify(
             pm => pm.RefreshSingleItem(missing1, It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()),
@@ -91,7 +91,7 @@ public class MetadataScanTaskTests
         var task = new MetadataScanTask(libraryManager.Object, providerManager.Object, directoryService.Object, logger.Object, config);
 
         // Must not throw, despite "bad" failing.
-        await task.Execute(new Progress<double>(), CancellationToken.None);
+        await task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         providerManager.Verify(
             pm => pm.RefreshSingleItem(good, It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()),
@@ -124,7 +124,7 @@ public class MetadataScanTaskTests
 
         var task = new MetadataScanTask(libraryManager.Object, providerManager.Object, directoryService.Object, logger.Object, config);
 
-        await task.Execute(new Progress<double>(), CancellationToken.None);
+        await task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         providerManager.Verify(
             pm => pm.RefreshSingleItem(It.IsAny<BaseItem>(), It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()),
