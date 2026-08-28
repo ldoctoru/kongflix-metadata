@@ -187,6 +187,19 @@ INDEX_TEMPLATE = """
   }
   .retry-btn:hover { background: var(--accent-soft); }
   .retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .missing-actions {
+    display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.9rem;
+  }
+  .missing-actions .filter-input { margin-bottom: 0; flex: 1; }
+  .clear-btn {
+    background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--bad);
+    padding: 0.6rem 0.9rem; border-radius: 9px; font-size: 0.85rem; cursor: pointer;
+    white-space: nowrap;
+  }
+  .clear-btn:hover { background: rgba(232, 105, 125, 0.12); }
+  .watch-hint {
+    color: var(--text-dim); font-size: 0.82rem; margin: -0.4rem 0 0.9rem 0.1rem;
+  }
   .missing-tag {
     display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 6px;
     background: rgba(139, 127, 214, 0.15); color: var(--accent); margin-right: 0.3rem;
@@ -262,7 +275,11 @@ INDEX_TEMPLATE = """
   </div>
 
   <div class="section-title" style="margin-top: 1.5rem;">Missing metadata</div>
-  <input id="missing-filter" class="filter-input" type="text" placeholder="Filter by title...">
+  <div id="watch-hint" class="watch-hint" style="display:none;">Watch mode only reacts to newly added items — click "Scan Now" to refresh this list.</div>
+  <div class="missing-actions">
+    <input id="missing-filter" class="filter-input" type="text" placeholder="Filter by title...">
+    <button id="clear-list-btn" class="clear-btn" onclick="clearMissingList()">Clear List</button>
+  </div>
   <div class="card history-card">
     <div class="table-scroll">
       <table id="missing-table">
@@ -342,6 +359,7 @@ INDEX_TEMPLATE = """
     const res = await fetch("/api/status");
     const data = await res.json();
     scanning = !!data.scanning;
+    document.getElementById("watch-hint").style.display = data.run_mode === "watch" ? "block" : "none";
 
     if (data.last_run_at !== lastRenderedRunAt) {
       refreshMissingItems();
@@ -558,6 +576,23 @@ INDEX_TEMPLATE = """
     }
     showToast(updated.status === "refreshed" ? "Refreshed successfully" : "Retry failed again");
     renderMissingItems();
+  }
+
+  async function clearMissingList() {
+    if (!confirm('Clear the missing-metadata list? This does not affect Jellyfin — it just resets what\'s shown here until the next scan.')) {
+      return;
+    }
+
+    const res = await fetch("/api/clear-missing-items", { method: "POST" });
+    if (!res.ok) {
+      showToast("Could not clear the list");
+      return;
+    }
+
+    allMissingItems = [];
+    currentMissingPage = 1;
+    renderMissingItems();
+    showToast("List cleared");
   }
 
   async function refreshMissingItems() {

@@ -63,6 +63,14 @@ Each failed or pending item also has a "Retry" button to re-attempt
 just that one item's refresh without running a full scan — the result
 is saved immediately, so it persists across page reloads.
 
+A "Clear List" button resets the displayed list (and its persisted
+snapshot) on demand, without waiting for or triggering a scan — useful
+if the list is stale and you don't want to run a full rescan right
+away. In `watch` mode, a hint reminds you that the list only updates
+on a full scan (a scheduled tick, in `schedule` mode, or a manual
+"Scan Now" click) — `watch` mode itself only reacts to newly added
+items and never re-scans the existing library on its own.
+
 The dashboard has no authentication — it's intended for use on a
 trusted home network, the same as most other Unraid app UIs.
 
