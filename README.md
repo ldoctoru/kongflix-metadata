@@ -8,8 +8,11 @@ See [`plugin/README.md`](plugin/README.md) for what it does, its
 settings, and build/install instructions.
 
 > **Status: builds and unit tests pass** (12/12) against the real
-> Jellyfin Plugin SDK. Not yet verified: loading and running inside an
-> actual Jellyfin server.
+> Jellyfin Plugin SDK, and confirmed running against a live Jellyfin
+> 10.11.11 server. See [`plugin/README.md`](plugin/README.md#version-compatibility)
+> for version compatibility — Jellyfin's plugin API isn't binary-stable
+> across releases, so an older or newer server than the build targets
+> may need a different plugin version.
 
 ## Install in Jellyfin
 

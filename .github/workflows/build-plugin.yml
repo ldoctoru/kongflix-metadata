@@ -9,7 +9,7 @@ on:
       target_abi:
         description: "Minimum Jellyfin server version this build supports"
         required: true
-        default: "10.9.0.0"
+        default: "10.11.0.0"
       changelog:
         description: "Short description of what changed"
         required: true
@@ -28,7 +28,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Restore
         working-directory: plugin
@@ -46,7 +46,7 @@ jobs:
         id: zip
         run: |
           zip_name="kongflix-poster-scanner_${{ inputs.version }}.zip"
-          (cd plugin/Kongflix.PosterScanner/bin/Release/net8.0 && zip -r "$GITHUB_WORKSPACE/${zip_name}" Kongflix.PosterScanner.dll)
+          (cd plugin/Kongflix.PosterScanner/bin/Release/net9.0 && zip -r "$GITHUB_WORKSPACE/${zip_name}" Kongflix.PosterScanner.dll)
           echo "zip_name=${zip_name}" >> "$GITHUB_OUTPUT"
 
       - name: Compute checksum
