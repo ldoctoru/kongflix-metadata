@@ -5,13 +5,13 @@ from app.state import AppState
 from app.web import create_app
 
 
-def make_test_app(tmp_path, state=None):
+def make_test_app(tmp_path, state=None, run_mode="schedule"):
     client = MagicMock()
     client.get_all_items.return_value = []
     state = state or AppState()
     history_path = str(tmp_path / "history.json")
     missing_items_path = str(tmp_path / "missing.json")
-    app = create_app(client, state, max_refreshes_per_run=200, history_path=history_path, missing_items_path=missing_items_path)
+    app = create_app(client, state, max_refreshes_per_run=200, history_path=history_path, missing_items_path=missing_items_path, run_mode=run_mode)
     app.config["TESTING"] = True
     return app, client, state, history_path, missing_items_path
 
@@ -35,6 +35,15 @@ def test_status_reflects_app_state(tmp_path):
     assert body["scanning"] is False
     assert body["last_result"] == {"scanned": 3}
     assert body["last_run_at"] == "2026-01-01T00:00:00+00:00"
+    assert body["run_mode"] == "schedule"
+
+
+def test_status_reflects_watch_run_mode(tmp_path):
+    app, _, _, _, _ = make_test_app(tmp_path, run_mode="watch")
+
+    response = app.test_client().get("/api/status")
+
+    assert response.get_json()["run_mode"] == "watch"
 
 
 def test_history_endpoint_returns_persisted_entries(tmp_path):
@@ -124,3 +133,30 @@ def test_retry_item_returns_404_for_unknown_id(tmp_path):
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "item not found"}
+
+
+def test_clear_missing_items_empties_the_snapshot(tmp_path):
+    from app.history import load_missing_items, save_missing_items
+
+    app, _, _, _, missing_items_path = make_test_app(tmp_path)
+    save_missing_items(missing_items_path, [
+        {"id": "1", "name": "Some Movie", "type": "Movie", "series": None, "season": None, "missing": ["poster"], "status": "failed"},
+    ])
+
+    response = app.test_client().post("/api/clear-missing-items")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"cleared": True}
+    assert load_missing_items(missing_items_path) == []
+
+
+def test_clear_missing_items_is_idempotent_on_empty_list(tmp_path):
+    app, _, _, _, missing_items_path = make_test_app(tmp_path)
+
+    response = app.test_client().post("/api/clear-missing-items")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"cleared": True}
+
+    from app.history import load_missing_items
+    assert load_missing_items(missing_items_path) == []

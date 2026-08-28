@@ -2,8 +2,8 @@ import threading
 
 from flask import Flask, jsonify, render_template_string
 
-from app.history import load_history, load_missing_items
-from app.runner import retry_item, run_scan_and_record
+from app.history import load_history, load_missing_items, save_missing_items
+from app.runner import _missing_items_lock, retry_item, run_scan_and_record
 from app.state import AppState
 
 INDEX_TEMPLATE = """
@@ -601,7 +601,7 @@ INDEX_TEMPLATE = """
 """
 
 
-def create_app(client, state: AppState, max_refreshes_per_run: int, history_path: str, missing_items_path: str) -> Flask:
+def create_app(client, state: AppState, max_refreshes_per_run: int, history_path: str, missing_items_path: str, run_mode: str) -> Flask:
     app = Flask(__name__)
 
     @app.route("/")
@@ -614,6 +614,7 @@ def create_app(client, state: AppState, max_refreshes_per_run: int, history_path
             "scanning": state.scanning,
             "last_result": state.last_result,
             "last_run_at": state.last_run_at,
+            "run_mode": run_mode,
         })
 
     @app.route("/api/history")
@@ -642,5 +643,11 @@ def create_app(client, state: AppState, max_refreshes_per_run: int, history_path
         if result is None:
             return jsonify({"error": "item not found"}), 404
         return jsonify(result)
+
+    @app.route("/api/clear-missing-items", methods=["POST"])
+    def clear_missing_items():
+        with _missing_items_lock:
+            save_missing_items(missing_items_path, [])
+        return jsonify({"cleared": True})
 
     return app

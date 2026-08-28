@@ -82,7 +82,7 @@ def main(env: dict = None) -> int:
         state = AppState()
         history_path = os.path.join(os.path.dirname(config.log_path) or ".", "scan_history.json")
         missing_items_path = os.path.join(os.path.dirname(config.log_path) or ".", "missing_items.json")
-        app = create_app(client, state, config.max_refreshes_per_run, history_path, missing_items_path)
+        app = create_app(client, state, config.max_refreshes_per_run, history_path, missing_items_path, config.run_mode)
         server_thread = threading.Thread(
             target=lambda: waitress.serve(app, host="0.0.0.0", port=config.web_port),
             daemon=True,
