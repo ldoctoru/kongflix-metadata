@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kongflix Poster Scanner</title>
+</head>
+<body>
+    <div id="KongflixPosterScannerConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="KongflixPosterScannerConfigForm">
+                    <div class="verticalSection">
+                        <h2>Kongflix Poster Scanner</h2>
+                        <p>
+                            Scans movie and series libraries for items missing a poster
+                            (the series or movie entry itself — seasons and episodes are
+                            never checked) and forces Jellyfin's configured agents to
+                            refresh them. Run it manually or on a schedule from
+                            <strong>Dashboard &rarr; Scheduled Tasks &rarr; Scan for Missing Posters</strong>.
+                        </p>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3>Libraries to scan</h3>
+                        <p class="fieldDescription">
+                            Unchecked libraries are skipped entirely. Music, home
+                            videos, box sets and book libraries are unchecked by
+                            default since they have no comparable "poster" concept.
+                        </p>
+                        <div id="libraryList"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MaxItemsPerScan">Max items refreshed per scan</label>
+                            <input type="number" is="emby-input" id="MaxItemsPerScan" min="0" step="1" />
+                            <div class="fieldDescription">
+                                Caps how many flagged items get refreshed in a single
+                                run, so a large backlog doesn't hammer your metadata
+                                providers. Anything left over is picked up on the next
+                                run. Use 0 for no limit.
+                            </div>
+                        </div>
+
+                        <label class="emby-checkbox-label">
+                            <input is="emby-checkbox" type="checkbox" id="DryRun" />
+                            <span>Dry run (log findings only, don't refresh anything)</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block">
+                            <span>Save</span>
+                        </button>
+                        <button is="emby-button" type="button" id="RunScanNowButton" class="raised block">
+                            <span>Run scan now</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        (function () {
+            var pluginId = "8b5a1c2d-4f6e-4a3b-9d1c-2e3f4a5b6c7d";
+            var taskKey = "KongflixPosterScan";
+
+            function libraryCheckboxes() {
+                return document.querySelectorAll("#libraryList input[type='checkbox']");
+            }
+
+            function loadLibraries(selectedIds) {
+                ApiClient.getJSON(ApiClient.getUrl("Library/VirtualFolders")).then(function (folders) {
+                    var container = document.querySelector("#libraryList");
+                    container.innerHTML = "";
+
+                    var noneSaved = !selectedIds || selectedIds.length === 0;
+                    var defaultExcluded = ["music", "musicvideos", "homevideos", "boxsets", "books"];
+
+                    folders.forEach(function (folder) {
+                        var checked = noneSaved
+                            ? defaultExcluded.indexOf(folder.CollectionType || "") === -1
+                            : selectedIds.indexOf(folder.ItemId) !== -1;
+
+                        var label = document.createElement("label");
+                        label.className = "emby-checkbox-label";
+
+                        var input = document.createElement("input");
+                        input.type = "checkbox";
+                        input.setAttribute("is", "emby-checkbox");
+                        input.dataset.libraryId = folder.ItemId;
+                        input.checked = checked;
+
+                        var span = document.createElement("span");
+                        span.textContent = folder.Name + (folder.CollectionType ? " (" + folder.CollectionType + ")" : " (mixed)");
+
+                        label.appendChild(input);
+                        label.appendChild(span);
+                        container.appendChild(label);
+                    });
+                });
+            }
+
+            function findTaskId() {
+                return ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks")).then(function (tasks) {
+                    var task = tasks.filter(function (t) { return t.Key === taskKey; })[0];
+                    return task ? task.Id : null;
+                });
+            }
+
+            document.querySelector("#KongflixPosterScannerConfigPage")
+                .addEventListener("pageshow", function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        document.querySelector("#MaxItemsPerScan").value = config.MaxItemsPerScan;
+                        document.querySelector("#DryRun").checked = config.DryRun;
+                        loadLibraries(config.IncludedLibraryIds);
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector("#KongflixPosterScannerConfigForm")
+                .addEventListener("submit", function (e) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        config.MaxItemsPerScan = parseInt(document.querySelector("#MaxItemsPerScan").value, 10) || 0;
+                        config.DryRun = document.querySelector("#DryRun").checked;
+                        config.IncludedLibraryIds = Array.prototype.slice.call(libraryCheckboxes())
+                            .filter(function (cb) { return cb.checked; })
+                            .map(function (cb) { return cb.dataset.libraryId; });
+
+                        ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                    e.preventDefault();
+                    return false;
+                });
+
+            document.querySelector("#RunScanNowButton")
+                .addEventListener("click", function () {
+                    findTaskId().then(function (id) {
+                        if (!id) {
+                            Dashboard.alert("Could not find the scan task. Restart Jellyfin and try again.");
+                            return;
+                        }
+
+                        ApiClient.ajax({
+                            type: "POST",
+                            url: ApiClient.getUrl("ScheduledTasks/Running/" + id)
+                        }).then(function () {
+                            Dashboard.alert("Scan started. Check Dashboard → Scheduled Tasks for progress.");
+                        });
+                    });
+                });
+        })();
+    </script>
+</body>
+</html>
