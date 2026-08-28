@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using Kongflix.MetadataScanner.Configuration;
 using Kongflix.MetadataScanner.Scanning;
 using MediaBrowser.Controller.Entities;
@@ -55,21 +56,26 @@ public class MetadataScanTask : IScheduledTask
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var excludeTypes = (_config.ExcludeItemTypes ?? string.Empty)
+        var excludeTypeNames = (_config.ExcludeItemTypes ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
+
+        // Unrecognized type names are silently skipped (matches Jellyfin's own
+        // ExcludeItemTypes behavior for names it doesn't recognize), rather than
+        // failing the whole scan over a typo in configuration.
+        var excludeTypes = excludeTypeNames
+            .Select(name => Enum.TryParse<BaseItemKind>(name, ignoreCase: true, out var kind) ? kind : (BaseItemKind?)null)
+            .Where(kind => kind.HasValue)
+            .Select(kind => kind!.Value)
+            .ToArray();
 
         var query = new InternalItemsQuery
         {
             Recursive = true,
         };
-        if (excludeTypes.Count > 0)
+        if (excludeTypes.Length > 0)
         {
-            // NOTE: InternalItemsQuery's exact property for excluding by type
-            // name may differ (e.g. ExcludeItemTypes taking BaseItemKind[]
-            // rather than string[]) — adjust to match the real SDK type here
-            // once building against the actually-restored package version.
-            query.ExcludeItemTypes = excludeTypes.ToArray();
+            query.ExcludeItemTypes = excludeTypes;
         }
 
         var items = _libraryManager.GetItemList(query);
