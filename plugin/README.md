@@ -53,6 +53,33 @@ dotnet build --configuration Release
 dotnet test Kongflix.PosterScanner.Tests/Kongflix.PosterScanner.Tests.csproj
 ```
 
+## Installing via the plugin repository (recommended)
+
+This repository publishes a Jellyfin plugin repository manifest at
+[`manifest.json`](../manifest.json), kept up to date by the "Build and
+release plugin" GitHub Actions workflow (see
+[Releasing a new version](#releasing-a-new-version) below).
+
+1. In Jellyfin, go to **Dashboard → Plugins → Repositories → Add
+   Repository**.
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Repository Name | `Kongflix` (or anything you like) |
+   | Repository URL | `https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/manifest.json` |
+
+3. Go to **Dashboard → Plugins → Catalog**, find "Kongflix Poster
+   Scanner," and install it.
+4. Restart Jellyfin when prompted.
+5. Continue from step 4 in [Installing (manual, local build)](#installing-manual-local-build)
+   below.
+
+> **Note:** the catalog only shows a version once one has actually been
+> published — see [Releasing a new version](#releasing-a-new-version)
+> below. Adding the repository before any version exists is harmless;
+> the plugin just won't appear in the Catalog list yet.
+
 ## Installing (manual, local build)
 
 1. Build the project in Release mode (see [Building](#building) above).
@@ -64,6 +91,27 @@ dotnet test Kongflix.PosterScanner.Tests/Kongflix.PosterScanner.Tests.csproj
 3. Restart Jellyfin.
 4. In Dashboard → Plugins, confirm "Kongflix Poster Scanner" is listed
    and enabled, then configure it from its settings page.
+
+## Releasing a new version
+
+The "Build and release plugin" workflow
+(`.github/workflows/build-plugin.yml`) builds the plugin in Release
+mode, runs the test suite, zips the output, creates a GitHub Release
+with that zip attached, and updates [`manifest.json`](../manifest.json)
+with the new version's download URL and MD5 checksum — all in one run.
+
+To trigger it: on GitHub, go to **Actions → Build and release plugin →
+Run workflow**, and fill in:
+
+- **version** — e.g. `1.0.0.0` (must be a valid 4-part .NET assembly
+  version)
+- **target_abi** — the minimum Jellyfin server version this build
+  supports (default `10.9.0.0`)
+- **changelog** — a short description of what changed
+
+Once it finishes, anyone with this repository already added in
+Jellyfin will see the new version available under Dashboard → Plugins
+→ Catalog (or an update prompt if already installed).
 
 ## Status
 
