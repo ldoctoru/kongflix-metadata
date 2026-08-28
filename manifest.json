@@ -1,0 +1,21 @@
+[
+  {
+    "guid": "5f3b2c1a-8e4d-4a6b-9c2f-1a2b3c4d5e6f",
+    "name": "Kongflix Metadata Scanner",
+    "description": "Scans the library for items missing a poster or overview and triggers Jellyfin's own metadata refresh for them.",
+    "overview": "Scan and refresh missing poster/overview metadata",
+    "owner": "ldoctoru",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/archive/icon.svg",
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "See commit history.",
+        "targetAbi": "10.9.0.0",
+        "sourceUrl": "https://github.com/ldoctoru/kongflix-metadata/releases/download/plugin-v1.0.0.0/kongflix-metadata-scanner_1.0.0.0.zip",
+        "checksum": "9fcf9ca3a89d408eb49966de59a0e725",
+        "timestamp": "2026-08-28T11:49:50Z"
+      }
+    ]
+  }
+]
