@@ -13,8 +13,8 @@
         "changelog": "Initial release: scans movie and series libraries for items missing a poster and forces a full metadata/image refresh via Jellyfin's own agents.",
         "targetAbi": "10.9.0.0",
         "sourceUrl": "https://github.com/ldoctoru/kongflix-metadata/releases/download/plugin-v1.0.0.0/kongflix-poster-scanner_1.0.0.0.zip",
-        "checksum": "",
-        "timestamp": "2026-08-28T13:11:45Z"
+        "checksum": "8352ac4d42b81237678952ea7269c3e9",
+        "timestamp": "2026-08-28T13:19:51Z"
       }
     ]
   }
