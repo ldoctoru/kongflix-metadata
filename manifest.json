@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/ldoctoru/kongflix-metadata/main/plugin/icon.svg",
     "versions": [
       {
+        "version": "1.0.2.0",
+        "changelog": "Config page: surface errors visibly instead of failing silently (no .catch() handlers previously meant a failed API call left the Libraries/Max Items fields blank with zero console output). Adds a visible error banner, console logging, and a loading/empty-state placeholder for the library list.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/ldoctoru/kongflix-metadata/releases/download/plugin-v1.0.2.0/kongflix-poster-scanner_1.0.2.0.zip",
+        "checksum": "a66961f5d85c4bb4d53a47ad1e49d68f",
+        "timestamp": "2026-08-28T15:10:24Z"
+      },
+      {
         "version": "1.0.1.0",
         "changelog": "Fix MissingMethodException on Jellyfin 10.11.x: retarget to Jellyfin.Controller 10.11.11 / .NET 9 (ILibraryManager.GetItemList's return type changed, and TaskTriggerInfo.TriggerDaily was replaced by TaskTriggerInfoType.DailyTrigger). Requires a Jellyfin 10.11.x+ server.",
         "targetAbi": "10.11.0.0",
