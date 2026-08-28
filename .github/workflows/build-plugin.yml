@@ -44,10 +44,9 @@ jobs:
 
       - name: Zip plugin output
         id: zip
-        working-directory: plugin
         run: |
           zip_name="kongflix-poster-scanner_${{ inputs.version }}.zip"
-          (cd Kongflix.PosterScanner/bin/Release/net8.0 && zip -r "../../../../${zip_name}" Kongflix.PosterScanner.dll)
+          (cd plugin/Kongflix.PosterScanner/bin/Release/net8.0 && zip -r "$GITHUB_WORKSPACE/${zip_name}" Kongflix.PosterScanner.dll)
           echo "zip_name=${zip_name}" >> "$GITHUB_OUTPUT"
 
       - name: Compute checksum
