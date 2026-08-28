@@ -5,24 +5,27 @@ poster or overview and triggers Jellyfin's own metadata refresh for
 them — the in-process successor to the standalone Docker-based
 kongflix-metadata tool.
 
-> **Status: unverified.** This code was authored in an environment with
-> no .NET SDK installed, so nothing here has actually been compiled or
-> run yet. Some of Jellyfin's Plugin SDK API surface (exact method and
-> property names) may differ slightly from what's used here depending
-> on the exact NuGet package version that resolves — expect to fix a
-> few compile errors on the first build. See the inline `NOTE:` comment
-> in `ScheduledTasks/MetadataScanTask.cs` for the most likely spot.
+> **Status: builds and all 11 unit tests pass** against the real
+> Jellyfin Plugin SDK. Not yet verified: loading and running inside an
+> actual Jellyfin server.
 
 ## Building
 
-Requires the .NET 8 SDK.
+Requires the .NET 8 SDK (or a newer SDK, e.g. .NET 10, with the .NET 8
+runtime also installed side-by-side — the plugin targets `net8.0` to
+match Jellyfin's own runtime, and running the test suite needs that
+runtime present even if your SDK is newer).
 
 ```bash
 cd plugin
 dotnet restore
 dotnet build --configuration Release
-dotnet test
+dotnet test Kongflix.MetadataScanner.Tests/Kongflix.MetadataScanner.Tests.csproj
 ```
+
+Note: running plain `dotnet test` from this directory picks up the
+main library project (not a test project) and reports nothing to run —
+point it at the test `.csproj` explicitly, as shown above.
 
 ## Installing (manual, local build)
 
@@ -53,7 +56,8 @@ scan.
 
 ## Status
 
-MVP: scan + refresh + basic config. Not yet built: a missing-items
-list/history view, per-item manual retry, and a real-time
-newly-added-item watcher (planned as follow-up work, matching the
-Docker app's feature set incrementally).
+MVP: scan + refresh + basic config — builds and all unit tests pass.
+Not yet verified in a real Jellyfin server, and not yet built: a
+missing-items list/history view, per-item manual retry, and a
+real-time newly-added-item watcher (planned as follow-up work,
+matching the archived Docker app's feature set incrementally).
