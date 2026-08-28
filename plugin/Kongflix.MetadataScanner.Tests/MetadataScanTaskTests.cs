@@ -31,7 +31,7 @@ public class MetadataScanTaskTests
     public async Task Execute_RefreshesOnlyFlaggedItems()
     {
         var complete = new Movie { Id = Guid.NewGuid(), Name = "Complete", Overview = "ok" };
-        complete.ImageInfos = new[] { new MediaBrowser.Model.Entities.ItemImageInfo { Path = "/x.jpg", Type = MediaBrowser.Model.Entities.ImageType.Primary } };
+        complete.ImageInfos = new[] { new MediaBrowser.Controller.Entities.ItemImageInfo { Path = "/x.jpg", Type = MediaBrowser.Model.Entities.ImageType.Primary } };
         var missing1 = MakeFlaggedItem("Missing1");
         var missing2 = MakeFlaggedItem("Missing2");
 
@@ -43,7 +43,7 @@ public class MetadataScanTaskTests
         var providerManager = new Mock<IProviderManager>();
         providerManager
             .Setup(pm => pm.RefreshSingleItem(It.IsAny<BaseItem>(), It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(ItemUpdateType.None);
 
         var directoryService = new Mock<IDirectoryService>();
         var logger = new Mock<ILogger<MetadataScanTask>>();
@@ -82,7 +82,7 @@ public class MetadataScanTaskTests
             .ThrowsAsync(new InvalidOperationException("boom"));
         providerManager
             .Setup(pm => pm.RefreshSingleItem(good, It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(ItemUpdateType.None);
 
         var directoryService = new Mock<IDirectoryService>();
         var logger = new Mock<ILogger<MetadataScanTask>>();
@@ -116,7 +116,7 @@ public class MetadataScanTaskTests
         var providerManager = new Mock<IProviderManager>();
         providerManager
             .Setup(pm => pm.RefreshSingleItem(It.IsAny<BaseItem>(), It.IsAny<MetadataRefreshOptions>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(ItemUpdateType.None);
 
         var directoryService = new Mock<IDirectoryService>();
         var logger = new Mock<ILogger<MetadataScanTask>>();
